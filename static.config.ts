@@ -1,4 +1,5 @@
 export default {
-    fallback: 'index.html',
-  }
+    output: 'static',
+    fallback: true,
+  };
   
