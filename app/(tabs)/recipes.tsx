@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, FlatList, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { Recipe } from '../../types/types';
-import { supabase } from "../../supabaseClient";
+import { supabase } from '../../supabaseClient';
 import RecipeFormModal from '../../components/RecipeFormModal';
 
 export default function RecipeScreen() {
@@ -11,27 +11,66 @@ export default function RecipeScreen() {
   const [editingRecipe, setEditingRecipe] = useState<Recipe | null>(null);
 
   const fetchRecipes = async () => {
-    const { data, error } = await supabase.from('recipes').select('*');
-    if (error) {
-      console.error('Error fetching recipes:', error);
-    } else {
-      setRecipes(data.map((r: any) => ({
-        ...r,
-        ingredients: r.ingredients || [],
-      })) as Recipe[]);
+    // 1. Fetch recipes
+    const { data: recipeData, error: recipeError } = await supabase
+      .from('recipes')
+      .select('*');
+
+    if (recipeError) {
+      console.error('Error fetching recipes:', recipeError);
+      return;
     }
+
+    // 2. Fetch all recipe_ingredients links
+    const { data: linkData, error: linkError } = await supabase
+      .from('recipe_ingredients')
+      .select('*');
+
+    if (linkError) {
+      console.error('Error fetching recipe_ingredients:', linkError);
+      return;
+    }
+
+    // 3. Fetch inventory data for ingredient names/units
+    const { data: inventoryData, error: inventoryError } = await supabase
+      .from('inventory')
+      .select('*');
+
+    if (inventoryError) {
+      console.error('Error fetching inventory:', inventoryError);
+      return;
+    }
+
+    // 4. Join data manually
+    const enriched = recipeData.map(recipe => {
+      const linked = linkData.filter(link => link.recipe_id === recipe.id);
+      const ingredients = linked.map(link => {
+        const item = inventoryData.find(i => i.id === link.ingredient_id);
+        return item ? {
+          id: item.id,
+          name: item.name,
+          unit: item.unit,
+          quantity: link.quantity_per_batch
+        } : null;
+      }).filter(Boolean);
+      return { ...recipe, ingredients };
+    });
+
+    setRecipes(enriched);
   };
 
   const handleDelete = async (recipeId: string) => {
     Alert.alert('Confirm Delete', 'Are you sure you want to delete this recipe?', [
       { text: 'Cancel', style: 'cancel' },
       {
-        text: 'Delete', style: 'destructive', onPress: async () => {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
           await supabase.from('recipe_ingredients').delete().eq('recipe_id', recipeId);
           await supabase.from('recipes').delete().eq('id', recipeId);
           fetchRecipes();
         }
-      },
+      }
     ]);
   };
 
@@ -40,7 +79,9 @@ export default function RecipeScreen() {
     setModalVisible(true);
   };
 
-  useEffect(() => { fetchRecipes(); }, []);
+  useEffect(() => {
+    fetchRecipes();
+  }, []);
 
   return (
     <View style={styles.container}>
@@ -94,12 +135,19 @@ const styles = StyleSheet.create({
   },
   title: { fontSize: 24, fontWeight: 'bold' },
   addButton: {
-    backgroundColor: '#007AFF', width: 36, height: 36, borderRadius: 18,
-    justifyContent: 'center', alignItems: 'center',
+    backgroundColor: '#007AFF',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   addButtonText: { color: '#fff', fontSize: 24, lineHeight: 24 },
   card: {
-    marginBottom: 20, padding: 16, backgroundColor: '#f0f0f0', borderRadius: 8,
+    marginBottom: 20,
+    padding: 16,
+    backgroundColor: '#f0f0f0',
+    borderRadius: 8,
   },
   name: { fontSize: 18, fontWeight: 'bold' },
   category: { color: '#888' },
