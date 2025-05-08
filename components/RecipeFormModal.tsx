@@ -89,7 +89,7 @@ export default function RecipeFormModal({ visible, onClose, onRecipeAdded, initi
         .single();
 
       if (catError || !newCat) {
-        console.error('Failed to create new category:', catError);
+        console.error('❌ Failed to create new category:', catError);
         Alert.alert('Error', 'Failed to create new category');
         return;
       }
@@ -111,6 +111,7 @@ export default function RecipeFormModal({ visible, onClose, onRecipeAdded, initi
         .update({ name: recipeName, category: finalCategory })
         .eq('id', recipeId);
       if (updateError) {
+        console.error('❌ Failed to update recipe:', updateError);
         Alert.alert('Error', 'Failed to update recipe');
         return;
       }
@@ -122,6 +123,10 @@ export default function RecipeFormModal({ visible, onClose, onRecipeAdded, initi
         .insert([{ name: recipeName, category: finalCategory }])
         .select()
         .single();
+
+      console.log('🧪 INSERT recipes result:', newRecipe);
+      console.log('🛑 INSERT recipes error:', error);
+
       if (error || !newRecipe) {
         Alert.alert('Error', 'Failed to save recipe.');
         return;
@@ -143,6 +148,7 @@ export default function RecipeFormModal({ visible, onClose, onRecipeAdded, initi
       .insert(ingredientLinks);
 
     if (linkError) {
+      console.error('❌ Failed to insert recipe_ingredients:', linkError);
       Alert.alert('Error', 'Failed to save ingredients.');
       return;
     }
