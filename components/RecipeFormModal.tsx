@@ -75,6 +75,7 @@ export default function RecipeFormModal({ visible, onClose, onRecipeAdded, initi
 
   const handleSave = async () => {
     console.log('📌 handleSave called');
+    Alert.alert('Save button pressed');
 
     if (!recipeName || !(selectedCategoryId || newCategory)) {
       Alert.alert('Error', 'Recipe name and category are required.');
@@ -150,7 +151,7 @@ export default function RecipeFormModal({ visible, onClose, onRecipeAdded, initi
       .insert(ingredientLinks);
 
     if (linkError) {
-      console.error('❌ Failed to insert ingredients:', linkError);
+      console.error('❌ Failed to save ingredients:', linkError);
       Alert.alert('Error', 'Failed to save ingredients.');
       return;
     }
