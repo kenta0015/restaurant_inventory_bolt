@@ -75,7 +75,9 @@ export default function RecipeFormModal({ visible, onClose, onRecipeAdded, initi
 
   const handleSave = async () => {
     console.log('📌 handleSave called');
-    Alert.alert('Save button pressed');
+    console.log('⚙️ recipeName:', recipeName);
+    console.log('⚙️ selectedCategoryId:', selectedCategoryId);
+    console.log('⚙️ newCategory:', newCategory);
 
     if (!recipeName || !(selectedCategoryId || newCategory)) {
       Alert.alert('Error', 'Recipe name and category are required.');
@@ -105,6 +107,8 @@ export default function RecipeFormModal({ visible, onClose, onRecipeAdded, initi
       }
       finalCategory = selectedCat.name;
     }
+
+    console.log('📦 Final category:', finalCategory);
 
     let recipeId = initialRecipe?.id;
 

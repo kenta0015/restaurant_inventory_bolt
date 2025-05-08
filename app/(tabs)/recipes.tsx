@@ -1,6 +1,6 @@
 // app/(tabs)/recipes.tsx
 import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, FlatList, StyleSheet, TouchableOpacity } from 'react-native';
 import { Recipe } from '../../types/types';
 import { supabase } from '../../supabaseClient';
 import RecipeFormModal from '../../components/RecipeFormModal';
@@ -11,7 +11,6 @@ export default function RecipeScreen() {
   const [editingRecipe, setEditingRecipe] = useState<Recipe | null>(null);
 
   const fetchRecipes = async () => {
-    // 1. Fetch recipes
     const { data: recipeData, error: recipeError } = await supabase
       .from('recipes')
       .select('*');
@@ -21,7 +20,6 @@ export default function RecipeScreen() {
       return;
     }
 
-    // 2. Fetch all recipe_ingredients links
     const { data: linkData, error: linkError } = await supabase
       .from('recipe_ingredients')
       .select('*');
@@ -31,7 +29,6 @@ export default function RecipeScreen() {
       return;
     }
 
-    // 3. Fetch inventory data for ingredient names/units
     const { data: inventoryData, error: inventoryError } = await supabase
       .from('inventory')
       .select('*');
@@ -41,7 +38,6 @@ export default function RecipeScreen() {
       return;
     }
 
-    // 4. Join data manually
     const enriched = recipeData.map(recipe => {
       const linked = linkData.filter(link => link.recipe_id === recipe.id);
       const ingredients = linked.map(link => {
@@ -60,18 +56,37 @@ export default function RecipeScreen() {
   };
 
   const handleDelete = async (recipeId: string) => {
-    Alert.alert('Confirm Delete', 'Are you sure you want to delete this recipe?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: async () => {
-          await supabase.from('recipe_ingredients').delete().eq('recipe_id', recipeId);
-          await supabase.from('recipes').delete().eq('id', recipeId);
-          fetchRecipes();
-        }
+    console.log('🗑️ Attempting to delete recipe:', recipeId);
+
+    try {
+      const { error: linkError, data: linkData } = await supabase
+        .from('recipe_ingredients')
+        .delete()
+        .eq('recipe_id', recipeId)
+        .select();
+
+      if (linkError) {
+        console.error('❌ recipe_ingredients delete error:', linkError);
+      } else {
+        console.log('✅ recipe_ingredients deleted:', linkData);
       }
-    ]);
+
+      const { error: recipeError, data: recipeData } = await supabase
+        .from('recipes')
+        .delete()
+        .eq('id', recipeId)
+        .select();
+
+      if (recipeError) {
+        console.error('❌ recipe delete error:', recipeError);
+      } else {
+        console.log('✅ recipe deleted:', recipeData);
+      }
+
+      fetchRecipes();
+    } catch (e) {
+      console.error('❌ Catch block error:', e);
+    }
   };
 
   const handleEdit = (recipe: Recipe) => {
