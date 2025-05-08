@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
-  Alert,
 } from 'react-native';
 import { supabase } from '../supabaseClient';
 
@@ -74,8 +73,10 @@ export default function RecipeFormModal({ visible, onClose, onRecipeAdded, initi
   };
 
   const handleSave = async () => {
+    console.log("🟡 handleSave triggered");
+
     if (!recipeName || !(selectedCategoryId || newCategory)) {
-      Alert.alert('Error', 'Recipe name and category are required.');
+      console.log("❌ Missing recipe name or category");
       return;
     }
 
@@ -88,16 +89,16 @@ export default function RecipeFormModal({ visible, onClose, onRecipeAdded, initi
         .select()
         .single();
 
+      console.log("📦 New category insert result:", newCat);
       if (catError || !newCat) {
-        console.error('❌ Failed to create new category:', catError);
-        Alert.alert('Error', 'Failed to create new category');
+        console.log('❌ Failed to create new category:', catError);
         return;
       }
       finalCategory = newCat.name;
     } else {
       const selectedCat = categories.find((cat) => cat.id === selectedCategoryId);
       if (!selectedCat) {
-        Alert.alert('Error', 'Please select or create a category');
+        console.log("❌ Category not selected/found");
         return;
       }
       finalCategory = selectedCat.name;
@@ -111,8 +112,7 @@ export default function RecipeFormModal({ visible, onClose, onRecipeAdded, initi
         .update({ name: recipeName, category: finalCategory })
         .eq('id', recipeId);
       if (updateError) {
-        console.error('❌ Failed to update recipe:', updateError);
-        Alert.alert('Error', 'Failed to update recipe');
+        console.log("❌ Failed to update recipe:", updateError);
         return;
       }
 
@@ -128,7 +128,7 @@ export default function RecipeFormModal({ visible, onClose, onRecipeAdded, initi
       console.log('🛑 INSERT recipes error:', error);
 
       if (error || !newRecipe) {
-        Alert.alert('Error', 'Failed to save recipe.');
+        console.log('❌ Failed to save recipe:', error);
         return;
       }
       recipeId = newRecipe.id;
@@ -143,16 +143,18 @@ export default function RecipeFormModal({ visible, onClose, onRecipeAdded, initi
         unit: ing.unit,
       }));
 
+    console.log("📦 Ingredients to insert:", ingredientLinks);
+
     const { error: linkError } = await supabase
       .from('recipe_ingredients')
       .insert(ingredientLinks);
 
     if (linkError) {
-      console.error('❌ Failed to insert recipe_ingredients:', linkError);
-      Alert.alert('Error', 'Failed to save ingredients.');
+      console.log('❌ Failed to insert recipe_ingredients:', linkError);
       return;
     }
 
+    console.log("✅ Recipe saved successfully");
     onRecipeAdded?.();
     onClose();
     resetForm();
