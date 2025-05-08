@@ -152,3 +152,67 @@ Step	Description
 ✅ Supabase console shows both recipes and recipe_ingredients entries are fully removed
 
 This issue is now fully resolved.
+
+## Error summary 3
+
+🛠️ Issue Summary: Meal Log Not Recorded & Inventory Not Updated
+🔍 Symptoms
+Clicking the "Save" button appeared to succeed, but:
+
+❌ No visible updates in meal_logs on Supabase
+
+❌ Inventory quantities did not decrease
+
+❌ No error was thrown in the app UI
+
+devTestLogMeal() which previously worked, also stopped functioning properly
+
+🧠 Root Causes Identified
+Problem	Root Cause
+❌ Meal log not inserted	Logic silently failed due to possible bad data or suppressed Supabase errors
+❌ Inventory not updated	.update() query executed without error check, or failed due to RLS policy
+❌ Ingredients not fetched	Wrong column name: quantityPerBatch instead of actual quantity_per_batch
+❌ Confusion from Supabase Studio	Sometimes reflected stale or delayed data
+❌ No debug output	Supabase errors were not logged to console, hiding underlying problems
+
+🧪 Troubleshooting Steps Taken
+✅ Step 1: Rewrote devTestLogMeal.ts with full logging
+Added strict .error checks to:
+
+recipe fetch
+
+recipe_ingredients fetch
+
+inventory fetch and update
+
+meal_logs insertion
+
+✅ Step 2: Corrected Supabase column name
+From quantityPerBatch → ✅ quantity_per_batch
+
+Ensured correct use of field in both select() and calculation logic
+
+✅ Step 3: Used console.log() for live tracking
+Validated each stage of the process
+
+Confirmed ingredient deductions and remaining stock amounts
+
+✅ Step 4: Validated Supabase changes manually
+Used Supabase Studio to confirm new entries in meal_logs
+
+Checked inventory quantity after deduction
+
+Ensured correct recipe UUID was used
+
+✅ Step 5: Confirmed DevTestScreen integration
+Added a debug button to manually trigger test logging logic
+
+Verified behavior outside the full Meal Log UI
+
+🎉 Final Outcome
+✅ Task	Result
+Meal Log inserted?	✅ Confirmed
+Inventory deducted?	✅ Confirmed with exact quantity
+RLS policies working?	✅ All actions allowed
+Supabase errors handled?	✅ All logged to console
+Testing UI confirmed?	✅ Button on DevTestScreen triggers full workflow
