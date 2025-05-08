@@ -1,71 +1,84 @@
+import { supabase } from "../../supabaseClient";
 
-console.log('🚀 devTestLogMeal() start');
-
-import { supabase } from '../../supabaseClient';
+const testRecipeId = "d05a98b6-e438-4d77-b3f9-929212918714"; // tomato sauce
+const testBatchCount = 3;
 
 export async function devTestLogMeal() {
-  const testRecipeId = '07f1877a-edde-49ca-83ca-1f830c2167eb'; // tomato sauce のレシピID
-  const batchCount = 2;
+  console.log("▶️ devTestLogMeal() called");
 
-  console.log('🔍 Running devTestLogMeal()...');
-
-  const { data: recipeData, error: recipeError } = await supabase
-    .from('recipes')
-    .select('ingredients')
-    .eq('id', testRecipeId)
+  // Step 1: Fetch recipe
+  const { data: recipe, error: recipeError } = await supabase
+    .from("recipes")
+    .select("*")
+    .eq("id", testRecipeId)
     .single();
 
-  if (recipeError || !recipeData) {
-    console.error('❌ Failed to fetch recipe:', recipeError);
+  if (recipeError || !recipe) {
+    console.error("❌ Failed to fetch recipe:", recipeError?.message);
+    return;
+  }
+  console.log("✅ Recipe fetched:", recipe.name);
+
+  // Step 2: Fetch ingredients for this recipe
+  const { data: ingredients, error: ingredientError } = await supabase
+    .from("recipe_ingredients")
+    .select("ingredient_id, quantity_per_batch")
+    .eq("recipe_id", testRecipeId);
+
+  if (ingredientError || !ingredients?.length) {
+    console.error("❌ Failed to fetch ingredients:", ingredientError?.message);
+    return;
+  }
+  console.log("✅ Ingredients fetched:", ingredients.length);
+
+  // Step 3: Deduct from inventory
+  for (const ingredient of ingredients) {
+    const { data: invData, error: invError } = await supabase
+      .from("inventory")
+      .select("*")
+      .eq("id", ingredient.ingredient_id)
+      .single();
+
+    if (invError || !invData) {
+      console.error(`❌ Inventory fetch failed for ${ingredient.ingredient_id}:`, invError?.message);
+      return;
+    }
+
+    const usedQty = ingredient.quantity_per_batch * testBatchCount;
+    const remainingQty = invData.quantity - usedQty;
+
+    if (remainingQty < 0) {
+      console.error(`❌ Not enough stock for ${invData.name}. Needed: ${usedQty}, Available: ${invData.quantity}`);
+      return;
+    }
+
+    const { error: updateError } = await supabase
+      .from("inventory")
+      .update({ quantity: remainingQty })
+      .eq("id", ingredient.ingredient_id);
+
+    if (updateError) {
+      console.error(`❌ Failed to update inventory for ${invData.name}:`, updateError.message);
+      return;
+    }
+
+    console.log(`✅ Deducted ${usedQty} from ${invData.name}. Remaining: ${remainingQty}`);
+  }
+
+  // Step 4: Log meal
+  const { error: insertError } = await supabase.from("meal_logs").insert([
+    {
+      date: new Date().toISOString(),
+      recipe_id: testRecipeId,
+      quantity: testBatchCount,
+      manualOverrideServings: null,
+    },
+  ]);
+
+  if (insertError) {
+    console.error("❌ Failed to insert meal log:", insertError.message);
     return;
   }
 
-  console.log('📦 recipeData:', recipeData);
-  console.log('🧂 ingredients:', recipeData.ingredients);
-
-  for (const ingredient of recipeData.ingredients) {
-    console.log('🔍 Checking ingredient:', ingredient); // 👈 NEW
-
-    if (!ingredient.id || !ingredient.quantity) {
-      console.warn('⚠️ Missing id or quantity in ingredient:', ingredient); // 👈 NEW
-      continue;
-    }
-
-    const totalUsed = ingredient.quantity * batchCount;
-
-    const { data: currentItem, error: fetchError } = await supabase
-      .from('inventory')
-      .select('quantity')
-      .eq('id', ingredient.id)
-      .single();
-
-    if (fetchError || !currentItem) {
-      console.error('❌ Failed to fetch inventory item:', fetchError);
-      continue;
-    }
-
-    const newQuantity = currentItem.quantity - totalUsed;
-
-    const { error: updateError } = await supabase
-      .from('inventory')
-      .update({ quantity: newQuantity })
-      .eq('id', ingredient.id);
-
-    if (updateError) {
-      console.error(`❌ Failed to update inventory for ${ingredient.id}:`, updateError);
-    } else {
-      console.log(`✅ Deducted ${totalUsed} from ${ingredient.id}`);
-    }
-  }
-
-  const { error: insertError } = await supabase.from('meal_logs').insert({
-    recipe_id: testRecipeId,
-    quantity: batchCount,
-  });
-
-  if (insertError) {
-    console.error('❌ Failed to insert into meal_logs:', insertError);
-  } else {
-    console.log('✅ Meal log inserted successfully');
-  }
+  console.log("✅ Meal log inserted successfully.");
 }

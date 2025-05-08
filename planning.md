@@ -93,101 +93,93 @@ Visually partially incomplete — due to Supabase Studio not showing updated inv
 ✅	All updates are reflected in Supabase tables
 
 
-PHASE 2 (UPDATED): Recipe Book Logic & UI Refinement
-🎯 GOAL: Fully implement and test recipe creation/editing, ingredient linking, and data integrity using total batch quantities (not per serving).
-This ensures accurate inventory deduction per batch of meal prep.
+✅ Phase 2: Recipe Creation & Batch Model Integration (Completed Tasks + Future Enhancements)
+🔹 Step 2.1: Create/Add Recipe UI (recipes.tsx)
+Functionality: Add a ＋ button to open a modal (RecipeFormModal) for recipe creation.
 
-🔹 Step 2.1: Create/Add Recipe UI
-In recipes.tsx:
+Fields:
 
-Add a ＋ button to open a modal or screen for recipe creation.
+[ Recipe Name: _________ ]
 
-🆕 Updated Form Fields:
-[ Recipe Name:             _________ ]
-[ Category:                ▼ Sauce  ] + Create New
-[ Ingredient:              ▼ Tomato ] ← pulled from inventory
-[ Quantity per Batch:      _______ kg ]
+[ Category: ▼ Sauce ] + Create New
+
+[ Ingredient: ▼ Tomato ] ← pulled from inventory
+
+[ Quantity per Batch: _______ kg ]
+
 [ + Add Another Ingredient ]
+
 [ Save Recipe ]
 
-✅ All quantities represent total amount used per batch, not per serving.
+✅ Quantities represent total used per batch, not per serving.
 
-🔹 Step 2.2: Store in Supabase
-When “Save” is tapped:
+🔹 Step 2.2: Store in Supabase on Save
+Recipes stored in recipes table:
 
-Save to recipes table:
+id, name, category, created_at
 
-name, category, created_at
+Ingredient links stored in recipe_ingredients table:
 
-Save ingredients to a recipe_ingredients table:
+recipe_id, ingredient_id, quantity_per_batch, unit
 
-recipe_id	ingredient_id	quantity_per_batch	unit
-1	101	0.5	kg
-1	102	0.3	kg
+✅ Works as foundation for prep tracking & inventory deduction logic.
 
-✅ This ensures prep and deduction logic is clean and scales with batch count.
+🔹 Step 2.3: Implement "Create New Category"
+✅ User can tap + Create New Category
 
-🔹 Step 2.3: Implement "Create New Category" Option
-If the user selects “+ Create New” in the category dropdown:
+✅ Input shown, new category saved to recipe_categories
 
-Show a new input field
-
-Save the new category to a recipe_categories table or directly to Supabase
-
-✅ Keep UX smooth without switching screens.
+✅ Smooth UI; no screen transitions
 
 🔹 Step 2.4: Edit & Delete Recipes
-In each recipe card (likely in RecipeCard.tsx):
+✅ [Edit] opens modal with pre-filled values
 
-Add:
+✅ [Delete] removes recipe + ingredients after confirmation
 
-[ Edit ]   [ Delete ]
+✅ Supabase policies allow all necessary operations
 
-Edit: Opens modal pre-filled with existing values
+📌 Upcoming:
 
-Delete: Confirms and removes the recipe + its ingredient links from Supabase
+ In Edit mode: allow users to remove ingredients from a recipe
+
+ Allow editing ingredient quantities and updating batch definitions
 
 🔹 Step 2.5: Validate Data and Links
-Run a data consistency test:
+✅ All created recipes fetch linked ingredients correctly
 
-✅ Each recipe retrieves its full ingredient list
+✅ Ingredient references resolve against inventory
 
-✅ Ingredient references match those in inventory
+✅ Quantities follow batch-model deduction structure
 
-✅ Quantity formats align with expected batch deduction logic
+🧪 Test Case:
 
-🧪 Example Test Case:
+Create "Tomato Sauce" → Confirm ingredient link
 
-Create “Tomato Sauce”:
+Edit: Change Tomato quantity → Save → Confirm update
 
-Tomato: 0.5 kg
+Delete → Confirm full removal from Supabase and UI
 
-Onion: 0.3 kg
+🔹 Step 2.6: Visual Ingredient Preview (Recommended)
+✅ Each recipe card already shows:
 
-Save and reopen to verify data
+name, category
 
-Edit → change Tomato to 0.6 kg → Save → confirm update
+Ingredients: list with name + quantity/unit
 
-Delete → confirm full removal
+📌 Enhancement idea:
 
-🔹 Step 2.6 (Recommended): Visual Ingredient Preview
-Display ingredient summary in each recipe card like this:
+Add icon indicators, color labels, or badges for clarity
 
-Tomato Sauce
-Category: Sauce
-Ingredients:
-- Tomato: 0.5 kg
-- Onion: 0.3 kg
+Consider collapsing long ingredient lists with "Show more"
 
-✅ Gives users fast visibility into recipe structure without needing to tap.
+✅ Completion Criteria for Phase 2
+Requirement	Status
+Create recipes with batch-based quantities	✅
+Edit/delete recipes including ingredient links	✅
+Store total batch ingredient quantities	✅
+Recipes link to inventory ingredients	✅
+UI is responsive, clean, and consistent	✅
 
-🧪 Completion Criteria for Phase 2 (Batch Model)
-✅	Requirement
-✅	Can create recipes with batch-based quantities
-✅	Can edit/delete recipes cleanly
-✅	Ingredients stored with total batch usage (not per serving)
-✅	Recipes properly link to inventory ingredients
-✅	UI is clean, consistent, and mobile-friendly
 
 
 ✅ PHASE 3 (UPDATED): Meal Log UI & Logging System Finalization

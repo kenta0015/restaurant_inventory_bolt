@@ -1,4 +1,4 @@
-🐞 Error Summary: Issues with Meal Log Display and Inventory Deduction Logic
+## 🐞 Error Summary1: Issues with Meal Log Display and Inventory Deduction Logic
 ✅ Issue 1: Meal Log Display Bug (Existed before test script was introduced)
 Overview
 When pressing the SAVE button on the Meal Log screen, data is successfully inserted into the meal_logs table in Supabase, but the data does not appear on the React Native Meal Log screen.
@@ -76,3 +76,79 @@ May consider adding a history/log table to verify future changes visually
 ✅ Next Step
 We will now proceed to integrate devTestLogMeal.ts into the actual UI workflow, replacing the temporary test route with a production-safe method.
 
+
+## Error Summary2
+
+🐛 Problem Overview:
+Recipe Deletion (Delete Button) Was Not Working
+Despite pressing the Delete button and seeing a log like
+🗑️ Attempting to delete recipe: ...
+in the browser console, the following issues were observed:
+
+❌ The recipe was not deleted from Supabase
+
+❌ The recipe card remained visible in the app
+
+❌ No ✅/❌ success/failure logs were shown in the console
+
+❌ No error was explicitly thrown from Supabase
+
+This led to confusion since the UI seemed responsive but the backend never confirmed deletion.
+
+🔍 Root Cause: Missing Supabase RLS (Row Level Security) Policies
+Although RLS was enabled in Supabase (which is a best practice for security),
+the following tables had no DELETE permissions configured:
+
+recipe_ingredients
+
+recipes
+
+As a result, when the app ran:
+
+supabase.from('recipes').delete().eq('id', recipeId)
+
+
+Supabase silently denied the delete operation due to missing RLS policies.
+The app interpreted this as "no response," which matched the observed behavior.
+
+✅ Solution: Add Proper DELETE Policies to Supabase
+To allow deletions explicitly, we created and enabled the following policies via the Supabase UI:
+
+✅ Fix 1: Allow DELETE on recipe_ingredients
+
+CREATE POLICY "Allow all delete recipe_ingredients"
+ON "public"."recipe_ingredients"
+AS PERMISSIVE
+FOR DELETE
+TO public
+USING (true);
+
+✅ Fix 2: Allow DELETE on recipes
+
+CREATE POLICY "Allow all delete recipes"
+ON "public"."recipes"
+AS PERMISSIVE
+FOR DELETE
+TO public
+USING (true);
+
+After saving both policies, deletion began working correctly in both the backend and frontend.
+
+🔧 Additional Useful Debug Steps
+Step	Description
+🖥️ Console Logging	Added console.log() before and after delete calls to confirm execution order
+🔄 Forced Reload	Used Ctrl + Shift + R to clear browser cache and avoid stale frontend state
+✅ Git Tracking	All relevant files were committed with descriptive messages for traceability
+
+🎉 Final Result
+✅ Pressing "Delete" removes the recipe and its ingredients from Supabase
+
+✅ The UI updates immediately to reflect the deletion
+
+✅ Console logs show:
+🗑️ Attempting to delete recipe: ...
+✅ recipe deleted: ...
+
+✅ Supabase console shows both recipes and recipe_ingredients entries are fully removed
+
+This issue is now fully resolved.
