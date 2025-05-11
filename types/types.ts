@@ -6,7 +6,7 @@ export interface InventoryItem {
   alertLevel: number;
   expiryDate: string | null;
   lastChecked: string;
-  category?: string; // 👈 これを追加（optional にしておくと柔軟）
+  category?: string;
 }
 
 export interface RecipeIngredient {
@@ -14,6 +14,14 @@ export interface RecipeIngredient {
   name: string;
   quantity: number;
   unit: string;
+}
+
+// ✅ New lightweight version used in MealLog JOINs
+export interface RecipeSummary {
+  id: string;
+  name: string;
+  category: string;
+  createdAt: string;
 }
 
 export interface Recipe {
@@ -25,15 +33,15 @@ export interface Recipe {
   createdAt: string;
 }
 
+// ✅ Updated to use RecipeSummary instead of full Recipe
 export interface MealLog {
   id: string;
-  recipe: Recipe;
+  recipe: RecipeSummary;
   date: string;
   quantity: number;
-  manualOverrideServings: number | null; // 👈 追加
+  manualOverrideServings: number | null;
   notes: string | null;
 }
-
 
 export interface PrepSuggestion {
   id: string;
@@ -61,7 +69,7 @@ export interface PrepTask {
   ingredientName: string;
   quantity: number;
   unit: string;
-  estimatedTime: number; // in minutes
+  estimatedTime: number;
   isCompleted: boolean;
   completedQuantity: number;
 }
@@ -71,6 +79,6 @@ export interface PrepSheet {
   date: string;
   weekday: string;
   tasks: PrepTask[];
-  totalEstimatedTime: number; // in minutes
+  totalEstimatedTime: number;
   status: 'in-progress' | 'completed';
 }

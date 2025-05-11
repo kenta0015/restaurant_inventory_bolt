@@ -216,3 +216,36 @@ Inventory deducted?	✅ Confirmed with exact quantity
 RLS policies working?	✅ All actions allowed
 Supabase errors handled?	✅ All logged to console
 Testing UI confirmed?	✅ Button on DevTestScreen triggers full workflow
+
+
+❌ Error Summary 4: .rpc("log_meal_transaction") Failed with 400 Bad Request
+🐛 Problem Overview
+Calling .rpc("log_meal_transaction", {...}) from the React Native app consistently returned a 400 Bad Request error. No data was inserted into the meal_logs table.
+
+🔍 Root Cause
+The Supabase stored procedure log_meal_transaction(...) attempted to insert values into columns that did not exist:
+
+sql
+コピーする
+編集する
+INSERT INTO meal_logs (recipe_id, quantity, manualOverrideServings, notes)
+VALUES (...);
+❌ Specific Errors:
+manualOverrideServings – did not exist → caused error
+
+After adding that column, notes – also did not exist → caused another error
+
+🧪 Debugging Steps Taken
+Step	Description
+✅ Step 1	Used Supabase SQL Editor to call the function directly and reveal the exact error
+✅ Step 2	Executed ALTER TABLE meal_logs ADD COLUMN manualOverrideServings integer;
+✅ Step 3	Executed ALTER TABLE meal_logs ADD COLUMN notes text;
+✅ Step 4	Re-tested the function call → confirmed successful log insertion in Studio
+✅ Step 5	Re-ran the app → .rpc() call from the UI now works correctly
+
+✅ Final Resolution
+The issue was resolved by adding the missing manualOverrideServings and notes columns to the meal_logs table.
+
+The .rpc() call now executes successfully and logs appear in both the Supabase Studio and the React Native app.
+
+Functionality is confirmed end-to-end, including UI display and database persistence.
