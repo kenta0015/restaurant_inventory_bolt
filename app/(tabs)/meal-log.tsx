@@ -14,7 +14,7 @@ import { MealLog } from "../../types/types";
 import AddMealLogModal from "../../components/AddMealLogModal";
 import MealLogEntry from "../../components/MealLogEntry";
 import CommentModal from "../../components/CommentModal";
-import { updateInventoryByDelta } from "../../utils/supabaseUtils"; // ← 自作関数の場所に合わせてください
+import { updateInventoryByDelta } from "../../utils/supabaseUtils";
 
 export default function MealLogScreen() {
   const [mealLogs, setMealLogs] = useState<MealLog[]>([]);
@@ -84,10 +84,9 @@ export default function MealLogScreen() {
   const handleQuantityUpdate = async (id: string, newQuantity: number) => {
     console.log(`✏️ Updating quantity for ID ${id} → ${newQuantity}`);
 
-    // Step 1: fetch current log (for old quantity + recipe_id)
     const { data, error } = await supabase
       .from("meal_logs")
-      .select("quantity, recipe_id")
+      .select("quantity, recipe_id, recipe:recipe_id (name)")
       .eq("id", id)
       .single();
 
@@ -98,15 +97,18 @@ export default function MealLogScreen() {
 
     const oldQuantity = data.quantity;
     const recipeId = data.recipe_id;
-    const delta = newQuantity - oldQuantity;
+    const recipeName =
+      Array.isArray(data.recipe) && data.recipe.length > 0
+        ? data.recipe[0].name
+        : (data.recipe as any)?.name || "Meal";
 
+    const delta = newQuantity - oldQuantity;
     console.log(`📐 Delta = ${delta}`);
 
     if (delta !== 0) {
       await updateInventoryByDelta(recipeId, delta);
     }
 
-    // Step 2: update the log itself
     const { error: updateError } = await supabase
       .from("meal_logs")
       .update({ quantity: newQuantity })
@@ -115,18 +117,40 @@ export default function MealLogScreen() {
     if (updateError) {
       Alert.alert("Error", updateError.message);
     } else {
-      fetchMealLogs();
+      console.log("✅ Meal log updated successfully");
+
+      const threshold = 2;
+      const shouldAlert = newQuantity <= threshold;
+      console.log(`🚨 recipeName: ${recipeName}`);
+
+      if (shouldAlert) {
+        setTimeout(() => {
+          Alert.alert(
+            "⚠️ Low Meal Stock",
+            `The stock for "${recipeName}" is now ${newQuantity}, which is below the threshold of ${threshold}.`
+          );
+        }, 100);
+      }
+
+      setTimeout(() => {
+        fetchMealLogs();
+      }, 150);
     }
   };
 
   return (
     <View style={{ flex: 1, padding: 10 }}>
-      <TextInput
-        style={styles.searchBox}
-        placeholder="Search meal logs..."
-        value={searchQuery}
-        onChangeText={setSearchQuery}
-      />
+      <View style={{ flexDirection: "row", alignItems: "center" }}>
+        <TextInput
+          style={[styles.searchBox, { flex: 1 }]}
+          placeholder="Search meal logs..."
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+        />
+        <TouchableOpacity style={styles.fab} onPress={() => setModalVisible(true)}>
+          <Ionicons name="add" size={28} color="white" />
+        </TouchableOpacity>
+      </View>
 
       <FlatList
         data={mealLogs.filter((log) =>
@@ -145,10 +169,6 @@ export default function MealLogScreen() {
           />
         )}
       />
-
-      <TouchableOpacity style={styles.fab} onPress={() => setModalVisible(true)}>
-        <Ionicons name="add" size={32} color="white" />
-      </TouchableOpacity>
 
       <AddMealLogModal
         visible={isModalVisible}
@@ -173,17 +193,14 @@ const styles = StyleSheet.create({
     padding: 8,
     marginBottom: 10,
     borderRadius: 6,
+    marginRight: 10,
   },
   fab: {
-    position: "absolute",
-    right: 20,
-    bottom: 30,
     backgroundColor: "#007AFF",
     borderRadius: 30,
-    width: 60,
-    height: 60,
+    width: 44,
+    height: 44,
     justifyContent: "center",
     alignItems: "center",
-    elevation: 5,
   },
 });
