@@ -1,83 +1,141 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  TextInput,
+  Alert,
+  Platform,
+} from 'react-native';
 import { MealLog } from '../types/types';
 
 interface Props {
-  mealLog: MealLog;
+  log: MealLog;
   onDelete: () => void;
-  onEdit: () => void;
+  onQuantityUpdate?: (newQuantity: number) => void;
+  onEditComment: () => void;
 }
 
-export default function MealLogEntry({ mealLog, onDelete, onEdit }: Props) {
+export default function MealLogEntry({
+  log,
+  onDelete,
+  onQuantityUpdate,
+  onEditComment,
+}: Props) {
+  const [editingQuantity, setEditingQuantity] = useState(false);
+  const [editedQuantity, setEditedQuantity] = useState(log.quantity.toString());
+
+  // 🔁 Sync quantity state with updated log prop
+  useEffect(() => {
+    setEditedQuantity(log.quantity.toString());
+  }, [log.quantity]);
+
   const confirmDelete = () => {
+    if (Platform.OS === 'web') {
+      onDelete(); // Fallback: skip Alert on Web
+      return;
+    }
+
     Alert.alert(
       'Confirm Deletion',
-      `Are you sure you want to delete "${mealLog.recipe.name}" log?`,
+      `Are you sure you want to delete "${log.recipe.name}" log?`,
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete', style: 'destructive', onPress: onDelete },
-      ]
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            onDelete();
+          },
+        },
+      ],
+      { cancelable: true }
     );
   };
 
-  return (
-    <View style={styles.entry}>
-      <View style={styles.headerRow}>
-        <Text style={styles.recipe}>{mealLog.recipe.name}</Text>
-        <View style={styles.actions}>
-          <TouchableOpacity onPress={onEdit}>
-            <Text style={styles.edit}>🖊 Edit</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={confirmDelete}>
-            <Text style={styles.delete}>🗑 Delete</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
+  const handleQuantitySubmit = () => {
+    const parsed = parseInt(editedQuantity);
+    if (!isNaN(parsed) && onQuantityUpdate) {
+      onQuantityUpdate(parsed);
+      setEditingQuantity(false);
+    }
+  };
 
-      <Text style={styles.details}>
-        Quantity: {mealLog.quantity}
-        {mealLog.manualOverrideServings !== null &&
-          ` → Override: ${mealLog.manualOverrideServings}`}
-      </Text>
-      {mealLog.notes && (
-        <Text style={styles.comment}>Note: {mealLog.notes}</Text>
-      )}
+  return (
+    <View style={styles.container}>
+      <Text style={styles.title}>{log.recipe.name}</Text>
+      <View style={styles.row}>
+        <Text>Quantity: </Text>
+        {editingQuantity ? (
+          <TextInput
+            style={styles.input}
+            value={editedQuantity}
+            keyboardType="numeric"
+            onChangeText={setEditedQuantity}
+            onSubmitEditing={handleQuantitySubmit}
+            onBlur={() => setEditingQuantity(false)}
+          />
+        ) : (
+          <TouchableOpacity onPress={() => setEditingQuantity(true)}>
+            <Text style={styles.quantity}>{log.quantity}</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+      {log.notes ? <Text style={styles.note}>Note: {log.notes}</Text> : null}
+      <View style={styles.buttonRow}>
+        <TouchableOpacity onPress={onEditComment}>
+          <Text style={styles.link}>💬 Comment</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={confirmDelete}>
+          <Text style={styles.delete}>🗑 Delete</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  entry: {
-    backgroundColor: '#fff',
-    padding: 12,
+  container: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    padding: 10,
+    marginBottom: 10,
     borderRadius: 8,
-    marginBottom: 12,
+    backgroundColor: '#fff',
   },
-  headerRow: {
+  title: {
+    fontWeight: 'bold',
+    marginBottom: 6,
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  quantity: {
+    fontSize: 16,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: '#aaa',
+    padding: 4,
+    width: 50,
+    textAlign: 'center',
+  },
+  note: {
+    fontStyle: 'italic',
+    color: '#555',
+    marginTop: 4,
+  },
+  buttonRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    marginTop: 8,
   },
-  recipe: {
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  actions: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  edit: {
-    color: '#007aff',
-    marginRight: 12,
+  link: {
+    color: '#007AFF',
   },
   delete: {
-    color: '#ff3b30',
-  },
-  details: {
-    marginTop: 6,
-  },
-  comment: {
-    marginTop: 6,
-    fontStyle: 'italic',
-    color: '#666',
+    color: 'red',
   },
 });

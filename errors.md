@@ -249,3 +249,63 @@ The issue was resolved by adding the missing manualOverrideServings and notes co
 The .rpc() call now executes successfully and logs appear in both the Supabase Studio and the React Native app.
 
 Functionality is confirmed end-to-end, including UI display and database persistence.
+
+## error summary 4
+🐞 Error Summary: Meal Log Delete Button Not Working
+❌ Problem Overview
+Clicking the 🗑 Delete button on the Meal Log screen did not remove the record from Supabase or update the app UI.
+No errors were shown, and console.log inside handleDelete() was never triggered.
+
+🔍 Root Cause
+The issue was due to multiple overlapping factors:
+
+Cause	Description
+🧱 Web Platform Limitation	Alert.alert(...).onPress does not execute reliably in React Native Web / Expo Web
+🎭 Wrong file used earlier	Previous edits to meal-log.tsx were not reflected due to Expo Router or cache confusion
+🧼 Stale bundler state	Cached files prevented updates from being picked up
+🔄 Closure/Binding confusion	Inconsistent use of onDelete={() => handleDelete(id)} caused missed callback references
+
+🛠 Resolution Steps
+✅ Verified actual mounted file
+
+Renamed meal-log.tsx → meal-log-broken.tsx to confirm routing
+
+Restored and validated correct route file
+
+✅ Forced rebuild
+
+Deleted .expo, dist, .cache folders
+
+Restarted with npx expo start --clear
+
+✅ Bypassed Alert for testing
+
+Called onDelete() directly to verify that handleDelete() and Supabase delete() worked
+
+✅ Confirmed working call stack
+
+Added inline onDelete={() => { ... }} with logs
+
+Verified Supabase deletion and screen refresh
+
+✅ Final Fix
+
+Restored Alert.alert() for native iOS/Android
+
+Added platform detection fallback (if (Platform.OS === 'web')) to call onDelete() directly when Alert fails
+
+✅ Final Outcome
+🔁 Deletion now works on Web and will work on iOS (via Alert confirmation)
+
+✅ Logs confirmed full execution path:
+
+sql
+コピーする
+編集する
+🧪 confirmDelete triggered
+🔍 typeof onDelete: function
+🧩 onDelete inline called
+🗑️ Attempting to delete...
+🟢 Supabase DELETE result
+✅ Deleted meal log
+🧹 Debug logs were removed and code is now production-ready

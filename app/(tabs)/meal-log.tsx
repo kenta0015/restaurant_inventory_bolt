@@ -1,57 +1,61 @@
 import React, { useEffect, useState } from "react";
 import {
   View,
-  FlatList,
   Text,
+  FlatList,
   TextInput,
   StyleSheet,
   TouchableOpacity,
+  Alert,
 } from "react-native";
-import { MealLog } from "../../types/types";
+import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "../../supabaseClient";
-import MealLogEntry from "../../components/MealLogEntry";
+import { MealLog } from "../../types/types";
 import AddMealLogModal from "../../components/AddMealLogModal";
+import MealLogEntry from "../../components/MealLogEntry";
+import CommentModal from "../../components/CommentModal";
+import { updateInventoryByDelta } from "../../utils/supabaseUtils"; // ← 自作関数の場所に合わせてください
 
 export default function MealLogScreen() {
   const [mealLogs, setMealLogs] = useState<MealLog[]>([]);
+  const [isModalVisible, setModalVisible] = useState(false);
+  const [commentEditingId, setCommentEditingId] = useState<string | null>(null);
+  const [commentValue, setCommentValue] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
-  const [modalVisible, setModalVisible] = useState(false);
 
   const fetchMealLogs = async () => {
-    console.log("🧪 Fetching meal logs with JOIN...");
     const { data, error } = await supabase
       .from("meal_logs")
-      .select(
-        `
-        *,
-        recipes (
+      .select(`
+        id,
+        quantity,
+        notes,
+        manualOverrideServings,
+        date,
+        recipe:recipe_id (
           id,
           name,
           category,
           createdAt
         )
-      `
-      )
+      `)
       .order("date", { ascending: false });
 
-    if (error) {
-      console.error("❌ Error fetching meal logs (JOIN):", error);
-    } else {
-      console.log("✅ Meal logs fetched with recipes:", data);
-      const formatted = data.map((log: any) => ({
+    if (!error && data) {
+      const mapped = data.map((log: any) => ({
         id: log.id,
-        date: log.date,
         quantity: log.quantity,
-        manualOverrideServings: log.manualOverrideServings ?? null,
-        notes: log.comment ?? null,
+        notes: log.notes,
+        manualOverrideServings: log.manualOverrideServings,
+        date: log.date,
         recipe: {
-          id: log.recipes?.id ?? "",
-          name: log.recipes?.name ?? "Unknown",
-          category: log.recipes?.category ?? "",
-          createdAt: log.recipes?.createdAt ?? "",
+          id: log.recipe.id,
+          name: log.recipe.name,
+          category: log.recipe.category,
+          createdAt: log.recipe.createdAt,
         },
       }));
-      setMealLogs(formatted);
+      setMealLogs(mapped);
     }
   };
 
@@ -59,82 +63,127 @@ export default function MealLogScreen() {
     fetchMealLogs();
   }, []);
 
-  const filteredLogs = mealLogs.filter((log) =>
-    log.recipe.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const handleDelete = async (id: string) => {
+    const { error } = await supabase.from("meal_logs").delete().eq("id", id);
+    if (error) Alert.alert("Error", error.message);
+    else fetchMealLogs();
+  };
+
+  const handleSaveComment = async (text: string) => {
+    if (!commentEditingId) return;
+    const { error } = await supabase
+      .from("meal_logs")
+      .update({ notes: text })
+      .eq("id", commentEditingId);
+
+    if (!error) fetchMealLogs();
+    setCommentEditingId(null);
+    setCommentValue("");
+  };
+
+  const handleQuantityUpdate = async (id: string, newQuantity: number) => {
+    console.log(`✏️ Updating quantity for ID ${id} → ${newQuantity}`);
+
+    // Step 1: fetch current log (for old quantity + recipe_id)
+    const { data, error } = await supabase
+      .from("meal_logs")
+      .select("quantity, recipe_id")
+      .eq("id", id)
+      .single();
+
+    if (error || !data) {
+      Alert.alert("Error", "Failed to retrieve original quantity");
+      return;
+    }
+
+    const oldQuantity = data.quantity;
+    const recipeId = data.recipe_id;
+    const delta = newQuantity - oldQuantity;
+
+    console.log(`📐 Delta = ${delta}`);
+
+    if (delta !== 0) {
+      await updateInventoryByDelta(recipeId, delta);
+    }
+
+    // Step 2: update the log itself
+    const { error: updateError } = await supabase
+      .from("meal_logs")
+      .update({ quantity: newQuantity })
+      .eq("id", id);
+
+    if (updateError) {
+      Alert.alert("Error", updateError.message);
+    } else {
+      fetchMealLogs();
+    }
+  };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Meal Tracking</Text>
-        <TouchableOpacity
-          onPress={() => setModalVisible(true)}
-          style={styles.addButton}
-        >
-          <Text style={styles.addButtonText}>＋</Text>
-        </TouchableOpacity>
-      </View>
-
+    <View style={{ flex: 1, padding: 10 }}>
       <TextInput
-        style={styles.searchInput}
+        style={styles.searchBox}
         placeholder="Search meal logs..."
         value={searchQuery}
         onChangeText={setSearchQuery}
       />
 
       <FlatList
-        data={filteredLogs}
+        data={mealLogs.filter((log) =>
+          log.recipe.name.toLowerCase().includes(searchQuery.toLowerCase())
+        )}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
-          <MealLogEntry mealLog={item} onDelete={() => {}} onEdit={() => {}} />
+          <MealLogEntry
+            log={item}
+            onDelete={() => handleDelete(item.id)}
+            onEditComment={() => {
+              setCommentEditingId(item.id);
+              setCommentValue(item.notes || "");
+            }}
+            onQuantityUpdate={(newQty) => handleQuantityUpdate(item.id, newQty)}
+          />
         )}
       />
 
+      <TouchableOpacity style={styles.fab} onPress={() => setModalVisible(true)}>
+        <Ionicons name="add" size={32} color="white" />
+      </TouchableOpacity>
+
       <AddMealLogModal
-        visible={modalVisible}
+        visible={isModalVisible}
         onClose={() => setModalVisible(false)}
         onLogSuccess={fetchMealLogs}
+      />
+
+      <CommentModal
+        visible={!!commentEditingId}
+        initialValue={commentValue}
+        onSave={handleSaveComment}
+        onCancel={() => setCommentEditingId(null)}
       />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#f8f8f8",
-    paddingHorizontal: 16,
-    paddingTop: 40,
+  searchBox: {
+    borderWidth: 1,
+    borderColor: "#ccc",
+    padding: 8,
+    marginBottom: 10,
+    borderRadius: 6,
   },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 12,
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: "bold",
-  },
-  addButton: {
-    backgroundColor: "#007aff",
-    borderRadius: 20,
-    width: 32,
-    height: 32,
+  fab: {
+    position: "absolute",
+    right: 20,
+    bottom: 30,
+    backgroundColor: "#007AFF",
+    borderRadius: 30,
+    width: 60,
+    height: 60,
     justifyContent: "center",
     alignItems: "center",
-  },
-  addButtonText: {
-    color: "white",
-    fontSize: 20,
-    lineHeight: 20,
-  },
-  searchInput: {
-    padding: 10,
-    borderColor: "#ccc",
-    borderWidth: 1,
-    borderRadius: 8,
-    marginBottom: 16,
-    backgroundColor: "#fff",
+    elevation: 5,
   },
 });

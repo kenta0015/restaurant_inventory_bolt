@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react"; 
+import React, { useEffect, useState } from "react";
 import {
   Modal,
   View,
@@ -28,16 +28,12 @@ const AddMealLogModal: React.FC<AddMealLogModalProps> = ({
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [selectedRecipeId, setSelectedRecipeId] = useState<string>("");
   const [batchCount, setBatchCount] = useState("1");
-  const [manualOverrideCount, setManualOverrideCount] = useState("");
-  const [comment, setComment] = useState("");
   const [outOfStockIngredients, setOutOfStockIngredients] = useState<string[]>([]);
 
   useEffect(() => {
     if (visible) {
       fetchRecipes();
       setBatchCount("1");
-      setManualOverrideCount("");
-      setComment("");
       setSelectedRecipeId("");
       setOutOfStockIngredients([]);
     }
@@ -88,16 +84,12 @@ const AddMealLogModal: React.FC<AddMealLogModalProps> = ({
   };
 
   const handleSubmit = async () => {
-    console.log("🧪 Submit tapped");
     if (!selectedRecipeId || selectedRecipeId.trim() === "") {
       Alert.alert("Missing Info", "Please select a recipe.");
       return;
     }
 
     const parsedBatches = parseInt(batchCount.trim());
-    const parsedOverride = manualOverrideCount
-      ? parseInt(manualOverrideCount.trim())
-      : null;
 
     if (isNaN(parsedBatches) || parsedBatches <= 0) {
       Alert.alert("Invalid Input", "Batch count must be a positive number.");
@@ -116,8 +108,6 @@ const AddMealLogModal: React.FC<AddMealLogModalProps> = ({
     const result = await logMeal({
       recipeId: selectedRecipeId,
       batchCount: parsedBatches,
-      comment,
-      overrideCount: parsedOverride || undefined,
     });
 
     if (!result.success) {
@@ -125,7 +115,7 @@ const AddMealLogModal: React.FC<AddMealLogModalProps> = ({
       return;
     }
 
-    Alert.alert("Success", `✅ Logged ${parsedOverride || parsedBatches} batches.`);
+    Alert.alert("Success", `✅ Logged ${parsedBatches} batches.`);
     onLogSuccess();
     onClose();
   };
@@ -157,24 +147,6 @@ const AddMealLogModal: React.FC<AddMealLogModalProps> = ({
           keyboardType="numeric"
           value={batchCount}
           onChangeText={setBatchCount}
-        />
-
-        <Text style={styles.label}>Manual Override (Optional)</Text>
-        <TextInput
-          style={styles.input}
-          keyboardType="numeric"
-          value={manualOverrideCount}
-          onChangeText={setManualOverrideCount}
-          placeholder="Enter actual number of batches"
-        />
-
-        <Text style={styles.label}>Comment (Optional)</Text>
-        <TextInput
-          style={[styles.input, styles.textArea]}
-          multiline
-          numberOfLines={3}
-          value={comment}
-          onChangeText={setComment}
         />
 
         {outOfStockIngredients.length > 0 && (
@@ -212,9 +184,6 @@ const styles = StyleSheet.create({
     borderColor: "#ccc",
     padding: 8,
     borderRadius: 6,
-  },
-  textArea: {
-    height: 80,
   },
   dropdown: {
     borderWidth: 1,
