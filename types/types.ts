@@ -7,6 +7,7 @@ export interface InventoryItem {
   expiryDate: string | null;
   lastChecked: string;
   category?: string;
+  comment?: string; // ← ✅ 追加
 }
 
 export interface RecipeIngredient {
