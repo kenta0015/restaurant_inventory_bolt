@@ -17,7 +17,6 @@ export interface RecipeIngredient {
   unit: string;
 }
 
-// ✅ New lightweight version used in MealLog JOINs
 export interface RecipeSummary {
   id: string;
   name: string;
@@ -32,9 +31,9 @@ export interface Recipe {
   category: string;
   ingredients: RecipeIngredient[];
   createdAt: string;
+ estimatedTime: number; // 
 }
 
-// ✅ Updated to use RecipeSummary instead of full Recipe
 export interface MealLog {
   id: string;
   recipe: RecipeSummary;
@@ -63,6 +62,7 @@ export interface IngredientShortage {
   unit: string;
 }
 
+// 🔁 Original PrepTask (still used for ingredient-based workflows)
 export interface PrepTask {
   id: string;
   recipeId: string;
@@ -73,6 +73,17 @@ export interface PrepTask {
   estimatedTime: number;
   isCompleted: boolean;
   completedQuantity: number;
+}
+
+// 🆕 NEW: Recipe-based batch model
+export interface RecipePrepTask {
+  id: string;
+  recipeId: string;
+  recipeName: string;
+  prepQuantity: number; // batch quantity
+  estimatedTime: number; // "20 min"
+  totalIngredientWeight: number; // e.g., 6.0 (kg)
+  isCompleted: boolean;
 }
 
 export interface PrepSheet {

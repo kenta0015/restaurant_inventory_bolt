@@ -66,7 +66,7 @@ Current inventory comparison
 ⚠️ Smart Alerts System
 
 System automation isn’t perfect — this feature helps avoid surprises.
-⚠️ Alert.alert() may not display on web (Expo Web or browser), but it works correctly on native devices (iOS/Android). Use console.warn() or a toast library for web fallback if needed.
+⚠️ Alert.alert() in the meal may not display on web (Expo Web or browser), but it works correctly(?? suspicious) on native devices (iOS/Android). Use console.warn() or a toast library for web fallback if needed.
 
 ♻️ Combines: Low Stock + Unverified Manual Check
 

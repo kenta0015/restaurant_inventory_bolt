@@ -138,6 +138,39 @@ export default function MealLogScreen() {
     }
   };
 
+  // ✅ Group logs by recipe name and sum quantity + merge notes
+  const groupedLogs = mealLogs
+    .filter((log) =>
+      log.recipe.name.toLowerCase().includes(searchQuery.toLowerCase())
+    )
+    .reduce((acc, log) => {
+      const key = log.recipe.name;
+      if (!acc[key]) {
+        acc[key] = {
+          id: log.id,
+          quantity: 0,
+          notes: [],
+          ids: [],
+          date: log.date,
+          manualOverrideServings: log.manualOverrideServings ?? null,
+          recipe: log.recipe,
+        };
+      }
+      acc[key].quantity += log.quantity;
+      acc[key].ids.push(log.id);
+      if (log.notes) acc[key].notes.push(log.notes);
+      return acc;
+    }, {} as Record<string, any>);
+
+  const mergedLogs: MealLog[] = Object.values(groupedLogs).map((entry: any) => ({
+    id: entry.ids[0],
+    quantity: entry.quantity,
+    notes: entry.notes.join("\n"),
+    recipe: entry.recipe,
+    date: entry.date,
+    manualOverrideServings: entry.manualOverrideServings,
+  }));
+
   return (
     <View style={{ flex: 1, padding: 10 }}>
       <View style={{ flexDirection: "row", alignItems: "center" }}>
@@ -153,9 +186,7 @@ export default function MealLogScreen() {
       </View>
 
       <FlatList
-        data={mealLogs.filter((log) =>
-          log.recipe.name.toLowerCase().includes(searchQuery.toLowerCase())
-        )}
+        data={mergedLogs}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
           <MealLogEntry

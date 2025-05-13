@@ -289,6 +289,20 @@ Task remains and rolls over to the next day
 
 ✅ This supports partial completion and flexible prep workflows.
 
+🔹  [⚠️⚠️⚠️Remaining task] Merge Meal Logs on Same Date (Optional)
+Instead of saving every log as a new row:
+
+Check if there is an existing meal_logs entry for the same recipe + date
+
+✅ If it exists → Update the quantity by adding the new batch count
+
+❌ If it does not exist → Insert a new log as usual
+
+✅ This keeps the database clean and avoids cluttering meal_logs with redundant entries for the same day.
+
+You may keep Supabase logs separate and group in the UI (current implementation) until you're ready to enable this.
+
+
 🔹 Step 4.3: Add Comment Box at the Top
 One shared comment box across the entire day’s prep sheet:
 
