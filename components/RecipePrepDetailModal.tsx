@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Modal,
   View,
@@ -10,7 +10,6 @@ import {
 import { Recipe } from '../types/types';
 import ShortageAlert from './ShortageAlert';
 import PrepQuantityAdjuster from './PrepQuantityAdjuster';
-import NecessaryPrepList from './NecessaryPrepList';
 
 interface Props {
   visible: boolean;
@@ -45,6 +44,17 @@ export default function RecipePrepDetailModal({
   showShortage,
   onCloseShortage,
 }: Props) {
+  const [batchQuantity, setBatchQuantity] = useState(initialBatchQuantity);
+
+  useEffect(() => {
+    setBatchQuantity(initialBatchQuantity);
+  }, [initialBatchQuantity]);
+
+  const handleQuantityChange = (newQuantity: number) => {
+    setBatchQuantity(newQuantity);
+    onQuantityChange(newQuantity);
+  };
+
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
       <ScrollView contentContainerStyle={styles.container}>
@@ -55,28 +65,22 @@ export default function RecipePrepDetailModal({
           <ShortageAlert shortages={shortages} onClose={onCloseShortage} />
         )}
 
-        <NecessaryPrepList
-          items={necessaryPrepInfo.necessaryIngredients}
-          canPrepWithCurrentStock={necessaryPrepInfo.canPrepWithCurrentStock}
-        />
-
         <View style={styles.ingredientsSection}>
           <Text style={styles.sectionTitle}>Total Required Ingredients</Text>
           {recipe.ingredients.map((ingredient, index) => (
             <View key={index} style={styles.ingredientRow}>
               <Text>{ingredient.name}</Text>
               <Text>
-                {(ingredient.quantity * initialBatchQuantity).toFixed(2)}{' '}
-                {ingredient.unit}
+                {(ingredient.quantity * batchQuantity).toFixed(2)} {ingredient.unit}
               </Text>
             </View>
           ))}
         </View>
 
         <PrepQuantityAdjuster
-          value={initialBatchQuantity}
+          value={batchQuantity}
           suggestedValue={initialBatchQuantity}
-          onChange={onQuantityChange}
+          onChange={handleQuantityChange}
           min={0}
         />
 
@@ -88,7 +92,7 @@ export default function RecipePrepDetailModal({
 
         <TouchableOpacity
           style={styles.confirmButton}
-          onPress={() => onConfirm(initialBatchQuantity)}
+          onPress={() => onConfirm(batchQuantity)}
         >
           <Text style={styles.confirmButtonText}>✅ Confirm</Text>
         </TouchableOpacity>

@@ -7,7 +7,7 @@ export interface InventoryItem {
   expiryDate: string | null;
   lastChecked: string;
   category?: string;
-  comment?: string; // ← ✅ 追加
+  comment?: string;
 }
 
 export interface RecipeIngredient {
@@ -31,7 +31,7 @@ export interface Recipe {
   category: string;
   ingredients: RecipeIngredient[];
   createdAt: string;
- estimatedTime: number; // 
+  estimatedTime: number;
 }
 
 export interface MealLog {
@@ -73,6 +73,24 @@ export interface PrepTask {
   estimatedTime: number;
   isCompleted: boolean;
   completedQuantity: number;
+
+  // ✅ 以下を追加
+  recipe: Recipe;
+  shortages: Array<{
+    name: string;
+    necessaryAmount: number;
+    unit: string;
+    currentStock: number;
+  }>;
+  necessaryPrepInfo: {
+    necessaryIngredients: Array<{
+      name: string;
+      necessaryAmount: number;
+      unit: string;
+      currentStock: number;
+    }>;
+    canPrepWithCurrentStock: boolean;
+  };
 }
 
 // 🆕 NEW: Recipe-based batch model
@@ -80,9 +98,9 @@ export interface RecipePrepTask {
   id: string;
   recipeId: string;
   recipeName: string;
-  prepQuantity: number; // batch quantity
-  estimatedTime: number; // "20 min"
-  totalIngredientWeight: number; // e.g., 6.0 (kg)
+  prepQuantity: number;
+  estimatedTime: number;
+  totalIngredientWeight: number;
   isCompleted: boolean;
 }
 

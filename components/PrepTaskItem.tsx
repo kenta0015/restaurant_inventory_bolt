@@ -3,138 +3,161 @@ import { View, Text, StyleSheet, TouchableOpacity, TextInput, Switch } from 'rea
 import { Clock, Check, X } from 'lucide-react-native';
 import { PrepTask } from '../types/types';
 import { formatTime } from '../utils/prepSheetUtils';
+import RecipePrepDetailModal from './RecipePrepDetailModal';
 
 interface PrepTaskItemProps {
   task: PrepTask;
   onComplete: (taskId: string, isCompleted: boolean, completedQuantity: number) => void;
 }
 
-export default function PrepTaskItem({ task, onComplete }: PrepTaskItemProps) {
+export default function RecipePrepTaskItem({ task, onComplete }: PrepTaskItemProps) {
   const [isEditing, setIsEditing] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const [batchQuantity, setBatchQuantity] = useState(task.quantity);
+  const [isCompleted, setIsCompleted] = useState(task.isCompleted);
   const [completedQuantity, setCompletedQuantity] = useState(
     task.isCompleted ? task.completedQuantity : task.quantity
   );
-  const [isCompleted, setIsCompleted] = useState(task.isCompleted);
-  
+
   const handleToggleComplete = (value: boolean) => {
     setIsCompleted(value);
     if (value && !isEditing) {
-      // If completing without editing, use the default quantity
-      onComplete(task.id, value, task.quantity);
+      onComplete(task.id, value, batchQuantity);
     } else if (!value) {
-      // If uncompleting, set completed quantity to 0
       onComplete(task.id, false, 0);
     }
   };
-  
+
   const handleSave = () => {
     onComplete(task.id, isCompleted, completedQuantity);
     setIsEditing(false);
   };
-  
+
   const handleCancel = () => {
     setCompletedQuantity(task.isCompleted ? task.completedQuantity : task.quantity);
     setIsCompleted(task.isCompleted);
     setIsEditing(false);
   };
-  
+
   return (
-    <View style={[
-      styles.container,
-      task.isCompleted && styles.completedContainer
-    ]}>
-      <View style={styles.header}>
-        <View style={styles.titleContainer}>
-          <Text style={styles.recipeName}>{task.recipeName}</Text>
-          <Text style={styles.ingredientName}>{task.ingredientName}</Text>
-        </View>
-        
-        <View style={styles.timeContainer}>
-          <Clock color="#666" size={14} />
-          <Text style={styles.timeText}>{formatTime(task.estimatedTime)}</Text>
-        </View>
-      </View>
-      
-      <View style={styles.detailsContainer}>
-        <View style={styles.quantityContainer}>
-          <Text style={styles.quantityLabel}>Required:</Text>
-          <Text style={styles.quantityValue}>
-            {task.quantity.toFixed(2)} {task.unit}
-          </Text>
-        </View>
-        
-        {isEditing ? (
-          <View style={styles.editContainer}>
-            <Text style={styles.editLabel}>Completed Amount:</Text>
-            <View style={styles.inputContainer}>
-              <TextInput
-                style={styles.input}
-                value={completedQuantity.toString()}
-                onChangeText={(text) => {
-                  const value = parseFloat(text);
-                  if (!isNaN(value)) {
-                    setCompletedQuantity(value);
-                  } else if (text === '') {
-                    setCompletedQuantity(0);
-                  }
-                }}
-                keyboardType="numeric"
-                selectTextOnFocus
-              />
-              <Text style={styles.unitText}>{task.unit}</Text>
+    <>
+      <TouchableOpacity onPress={() => setShowModal(true)}>
+        <View style={[
+          styles.container,
+          task.isCompleted && styles.completedContainer
+        ]}>
+          <View style={styles.header}>
+            <View style={styles.titleContainer}>
+              <Text style={styles.recipeName}>{task.recipeName}</Text>
+              <Text style={styles.ingredientName}>{task.ingredientName}</Text>
             </View>
-            
-            <View style={styles.actionButtons}>
-              <TouchableOpacity 
-                style={[styles.actionButton, styles.saveButton]} 
-                onPress={handleSave}
-              >
-                <Check color="#FFF" size={16} />
-                <Text style={styles.saveButtonText}>Save</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity 
-                style={[styles.actionButton, styles.cancelButton]} 
-                onPress={handleCancel}
-              >
-                <X color="#FFF" size={16} />
-                <Text style={styles.cancelButtonText}>Cancel</Text>
-              </TouchableOpacity>
+
+            <View style={styles.timeContainer}>
+              <Clock color="#666" size={14} />
+              <Text style={styles.timeText}>{formatTime(task.estimatedTime)}</Text>
             </View>
           </View>
-        ) : (
-          <View style={styles.statusContainer}>
-            <View style={styles.switchContainer}>
-              <Text style={styles.switchLabel}>
-                {task.isCompleted ? 'Completed' : 'Mark as completed'}
+
+          <View style={styles.detailsContainer}>
+            <View style={styles.quantityContainer}>
+              <Text style={styles.quantityLabel}>Required:</Text>
+              <Text style={styles.quantityValue}>
+                {batchQuantity.toFixed(2)} {task.unit}
               </Text>
-              <Switch
-                value={isCompleted}
-                onValueChange={handleToggleComplete}
-                trackColor={{ false: '#E0E0E0', true: '#A5D6A7' }}
-                thumbColor={isCompleted ? '#4CAF50' : '#FFF'}
-              />
             </View>
-            
-            {task.isCompleted ? (
-              <View style={styles.completedInfo}>
-                <Text style={styles.completedLabel}>Added to inventory:</Text>
-                <Text style={styles.completedValue}>
-                  {task.completedQuantity.toFixed(2)} {task.unit}
-                </Text>
+
+            {isEditing ? (
+              <View style={styles.editContainer}>
+                <Text style={styles.editLabel}>Completed Amount:</Text>
+                <View style={styles.inputContainer}>
+                  <TextInput
+                    style={styles.input}
+                    value={completedQuantity.toString()}
+                    onChangeText={(text) => {
+                      const value = parseFloat(text);
+                      if (!isNaN(value)) {
+                        setCompletedQuantity(value);
+                      } else if (text === '') {
+                        setCompletedQuantity(0);
+                      }
+                    }}
+                    keyboardType="numeric"
+                    selectTextOnFocus
+                  />
+                  <Text style={styles.unitText}>{task.unit}</Text>
+                </View>
+
+                <View style={styles.actionButtons}>
+                  <TouchableOpacity
+                    style={[styles.actionButton, styles.saveButton]}
+                    onPress={handleSave}
+                  >
+                    <Check color="#FFF" size={16} />
+                    <Text style={styles.saveButtonText}>Save</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.actionButton, styles.cancelButton]}
+                    onPress={handleCancel}
+                  >
+                    <X color="#FFF" size={16} />
+                    <Text style={styles.cancelButtonText}>Cancel</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             ) : (
-              <TouchableOpacity 
-                style={styles.editButton}
-                onPress={() => setIsEditing(true)}
-              >
-                <Text style={styles.editButtonText}>Edit Quantity</Text>
-              </TouchableOpacity>
+              <View style={styles.statusContainer}>
+                <View style={styles.switchContainer}>
+                  <Text style={styles.switchLabel}>
+                    {task.isCompleted ? 'Completed' : 'Mark as completed'}
+                  </Text>
+                  <Switch
+                    value={isCompleted}
+                    onValueChange={handleToggleComplete}
+                    trackColor={{ false: '#E0E0E0', true: '#A5D6A7' }}
+                    thumbColor={isCompleted ? '#4CAF50' : '#FFF'}
+                  />
+                </View>
+
+                {task.isCompleted ? (
+                  <View style={styles.completedInfo}>
+                    <Text style={styles.completedLabel}>Added to inventory:</Text>
+                    <Text style={styles.completedValue}>
+                      {task.completedQuantity.toFixed(2)} {task.unit}
+                    </Text>
+                  </View>
+                ) : (
+                  <TouchableOpacity
+                    style={styles.editButton}
+                    onPress={() => setIsEditing(true)}
+                  >
+                    <Text style={styles.editButtonText}>Edit Quantity</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
             )}
           </View>
-        )}
-      </View>
-    </View>
+        </View>
+      </TouchableOpacity>
+
+      <RecipePrepDetailModal
+        visible={showModal}
+        recipe={task.recipe}
+        initialBatchQuantity={batchQuantity}
+        shortages={task.shortages || []}
+        onConfirm={(qty) => {
+          setBatchQuantity(qty);
+          setShowModal(false);
+        }}
+        onClose={() => setShowModal(false)}
+        onQuantityChange={(qty) => {
+          setBatchQuantity(qty); // 同期だけ（保存ではない）
+        }}
+        necessaryPrepInfo={task.necessaryPrepInfo}
+        showShortage={true}
+        onCloseShortage={() => {}}
+      />
+    </>
   );
 }
 

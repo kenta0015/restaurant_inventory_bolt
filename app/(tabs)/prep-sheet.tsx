@@ -6,7 +6,6 @@ import {
   StyleSheet,
   Alert,
   TextInput,
-  Modal,
 } from 'react-native';
 import PrepSheetSummary from '../../components/PrepSheetSummary';
 import RecipePrepTaskItem from '../../components/RecipePrepTaskItem';
@@ -14,7 +13,7 @@ import RecipePrepDetailModal from '../../components/RecipePrepDetailModal';
 import { supabase } from '../../supabaseClient';
 import {
   Recipe,
-  RecipePrepTask,
+  PrepTask,
   IngredientShortage,
 } from '../../types/types';
 import {
@@ -25,7 +24,7 @@ import {
 export default function PrepSheet() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [recipes, setRecipes] = useState<Recipe[]>([]);
-  const [tasks, setTasks] = useState<RecipePrepTask[]>([]);
+  const [tasks, setTasks] = useState<PrepTask[]>([]);
   const [comment, setComment] = useState('');
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
@@ -88,13 +87,21 @@ export default function PrepSheet() {
     );
   };
 
+  const convertShortages = (list: IngredientShortage[]) =>
+    list.map((s) => ({
+      name: s.ingredientName,
+      necessaryAmount: s.required,
+      unit: s.unit,
+      currentStock: s.available,
+    }));
+
   const fetchRecipes = async () => {
     const { data, error } = await supabase
       .from('recipes')
       .select(
         `id, name, category, createdAt, description,
          recipe_ingredients (
-           ingredient_id ( name ),
+           ingredient_id ( id, name ),
            quantity_per_batch,
            unit
          )`
@@ -117,38 +124,48 @@ export default function PrepSheet() {
         quantity: ing.quantity_per_batch,
         unit: ing.unit,
       })),
-      estimatedTime: 20, // Default fallback
+      estimatedTime: 20,
     }));
 
     setRecipes(formatted);
 
-    const generatedTasks: RecipePrepTask[] = formatted.map((recipe) => {
-      const totalWeight = recipe.ingredients.reduce(
-        (sum, ing) => sum + (typeof ing.quantity === 'number' ? ing.quantity : 0),
-        0
-      );
+    const generatedTasks: PrepTask[] = formatted.map((recipe) => {
+      const shortagesRaw = checkIngredientShortages(recipe, 1, []);
+      const shortages = convertShortages(shortagesRaw);
+      const prepInfo = calculateNecessaryPrepAmount(recipe, 1, []);
 
       return {
         id: recipe.id,
         recipeId: recipe.id,
         recipeName: recipe.name,
-        prepQuantity: 1,
+        ingredientName: '',
+        quantity: 1,
+        unit: 'batch',
         estimatedTime: recipe.estimatedTime,
-        totalIngredientWeight: totalWeight,
         isCompleted: false,
+        completedQuantity: 0,
+        recipe,
+        shortages,
+        necessaryPrepInfo: prepInfo,
       };
     });
 
     setTasks(generatedTasks);
   };
 
-  const handleComplete = async (recipeId: string, batchQuantity: number) => {
-    const recipe = recipes.find((r) => r.id === recipeId);
+  const handleComplete = async (
+    taskId: string,
+    isCompleted: boolean,
+    completedQuantity: number
+  ) => {
+    if (!isCompleted) return;
+
+    const recipe = recipes.find((r) => r.id === taskId);
     if (!recipe) return;
 
     const { error } = await supabase.from('meal_logs').insert({
-      recipe_id: recipeId,
-      quantity: batchQuantity,
+      recipe_id: taskId,
+      quantity: completedQuantity,
       manualOverrideServings: null,
       notes: null,
     });
@@ -156,30 +173,19 @@ export default function PrepSheet() {
     if (error) {
       Alert.alert('Error', 'Failed to log meal: ' + error.message);
     } else {
-      Alert.alert('✅ Success', `${recipe.name} logged as ${batchQuantity} batch(es)`);
+      Alert.alert('✅ Success', `${recipe.name} logged as ${completedQuantity} batch(es)`);
       setTasks((prev) =>
         prev.map((t) =>
-          t.recipeId === recipeId ? { ...t, isCompleted: true } : t
+          t.recipeId === taskId ? { ...t, isCompleted: true } : t
         )
       );
     }
   };
 
-  const handleDefer = (recipeId: string) => {
-    Alert.alert('Deferred', `Task for recipe ID ${recipeId} will remain.`);
-  };
-
-  const handleOpenDetail = (recipe: Recipe, batchQty: number) => {
-    setSelectedRecipe(recipe);
-    setSelectedQuantity(batchQty);
-
-    const shortages = checkIngredientShortages(recipe, batchQty, []);
-    const prepInfo = calculateNecessaryPrepAmount(recipe, batchQty, []);
-
-    setShortages(shortages);
-    setShowShortage(true);
-    setNecessaryPrepInfo(prepInfo);
-    setModalVisible(true);
+  const handleQuantityChange = (taskId: string, newQty: number) => {
+    setTasks((prev) =>
+      prev.map((t) => (t.id === taskId ? { ...t, quantity: newQty } : t))
+    );
   };
 
   const totalTime = tasks.reduce(
@@ -220,12 +226,9 @@ export default function PrepSheet() {
               !task.isCompleted && (
                 <RecipePrepTaskItem
                   key={task.id}
-                  recipe={{
-                    ...recipes.find((r) => r.id === task.recipeId)!,
-                  }}
-                  onComplete={(recipeId, batchQty) => handleComplete(recipeId, batchQty)}
-                  onDefer={handleDefer}
-                  onOpenDetail={handleOpenDetail}
+                  task={task}
+                  onComplete={handleComplete}
+                  onQuantityChange={handleQuantityChange}
                 />
               )
           )}
@@ -241,7 +244,7 @@ export default function PrepSheet() {
           necessaryPrepInfo={necessaryPrepInfo}
           onQuantityChange={setSelectedQuantity}
           onConfirm={(qty) => {
-            setSelectedQuantity(qty); // Only update batch quantity
+            setSelectedQuantity(qty);
             setModalVisible(false);
           }}
           onClose={() => setModalVisible(false)}
