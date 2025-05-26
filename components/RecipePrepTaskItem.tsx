@@ -31,9 +31,20 @@ export default function RecipePrepTaskItem({ task, onComplete, onQuantityChange 
             </Text>
           </View>
 
-          <View style={styles.batchRow}>
-            <Text style={styles.label}>📦 Batch Quantity:</Text>
-            <Text style={styles.valueText}>{task.quantity} batch(es)</Text>
+          <View style={styles.prepRow}>
+            <Text style={styles.prepLabel}>Planned Prep (based on suggestion): </Text>
+            <Text style={styles.prepValue}>{task.quantity} batch(es)</Text>
+          </View>
+
+          <View style={styles.prepRow}>
+            <Text style={styles.prepLabel}>Current Stock: </Text>
+            <Text style={styles.stockValue}>
+              {task.necessaryPrepInfo?.necessaryIngredients?.length > 0
+                ? task.necessaryPrepInfo.necessaryIngredients[0].currentStock
+                : 0}
+              {' '}
+              batch(es)
+            </Text>
           </View>
 
           <View style={styles.actionRow}>
@@ -104,24 +115,30 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#555',
   },
-  batchRow: {
-    marginTop: 8,
-    marginBottom: 12,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
+  prepRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     marginBottom: 4,
   },
-  valueText: {
+  prepLabel: {
+    fontSize: 14,
+    color: '#333',
+    fontWeight: '500',
+  },
+  prepValue: {
+    fontSize: 18,
+    color: '#1E88E5',
+    fontWeight: 'bold',
+  },
+  stockValue: {
     fontSize: 16,
-    color: '#000',
+    color: '#444',
     fontWeight: '500',
   },
   actionRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    marginTop: 12,
   },
   doneButton: {
     backgroundColor: '#2196F3',

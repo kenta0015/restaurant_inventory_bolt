@@ -51,7 +51,10 @@ export default function RealOCRUploader({ onUpdate }: Props) {
 
     const { data } = await supabase.from('inventory').select('id, name, quantity, category');
     const inventoryList = (data as InventoryItem[]) || [];
-    const inventoryNames = inventoryList.map((i) => ({ id: i.id, name: i.name }));
+    const inventoryNames = inventoryList.map((i) => ({
+      id: i.id,
+      name: String(i.name), // ← 修正ポイント：name を強制的に string 化
+    }));
 
     const structured: OCRItem[] = [];
     for (const line of lines) {
@@ -59,7 +62,7 @@ export default function RealOCRUploader({ onUpdate }: Props) {
       if (!parsed || !parsed.name || isNaN(parsed.quantity)) continue;
 
       const correctedName = correctName(parsed.name, inventoryNames);
-      const exists = inventoryList.find((i) => i.name.toLowerCase() === correctedName.toLowerCase());
+      const exists = inventoryList.find((i) => String(i.name).toLowerCase() === correctedName.toLowerCase());
 
       structured.push({
         name: parsed.name,
@@ -82,7 +85,7 @@ export default function RealOCRUploader({ onUpdate }: Props) {
     const inventoryList = (data as InventoryItem[]) || [];
 
     for (const item of parsedItems) {
-      const existing = inventoryList.find((i) => i.name.toLowerCase() === item.correctedName.toLowerCase());
+      const existing = inventoryList.find((i) => String(i.name).toLowerCase() === item.correctedName.toLowerCase());
 
       if (existing) {
         const updatedQty = parseFloat(existing.quantity ?? 0) + item.quantity;

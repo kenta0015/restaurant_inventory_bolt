@@ -743,5 +743,11 @@ Benefit	Result
 🔁 過去入力からの自動サジェスト機能
 　例: “Garie” のような新語に対し、「Garlicですか？」と自動で候補を表示(inventory section)
 
+⚠️ Smart Alerts Combined low stock and physical check warnings
 
+alertLevel を後から手動で変更する方法 方法1：SupabaseのWeb UI inventory テーブルを開き、対象材料の alertLevel セルをクリック
+
+例： 1 → 2 に書き換える → Enter
+
+方法2：アプリから編集（今は未対応なら、将来追加可能）
 

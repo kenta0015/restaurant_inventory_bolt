@@ -28,6 +28,7 @@ Materials are deducted automatically based on prep quantity
 
 📊 Prep-Sheet Mode
 Suggest daily prep quantity based on past trends (weekday-based average)
+過去ログからの予測アルゴリズム導入は後ほど
 
 ⚠️ Smart Alerts
 Combined low stock and physical check warnings

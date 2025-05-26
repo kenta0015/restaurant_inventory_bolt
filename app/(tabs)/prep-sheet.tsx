@@ -15,7 +15,6 @@ import {
   Recipe,
   PrepTask,
   IngredientShortage,
-  InventoryItem,
 } from '../../types/types';
 import {
   checkIngredientShortages,
@@ -97,14 +96,17 @@ export default function PrepSheet() {
     }));
 
   const fetchRecipes = async () => {
-    const { data: inventoryData, error: inventoryError } = await supabase
+    const { data: inventoryData } = await supabase
       .from('inventory')
       .select('*');
 
-    if (inventoryError || !inventoryData) {
-      console.error('❌ Failed to load inventory:', inventoryError?.message);
-      return;
-    }
+    const { data: suggestionData } = await supabase
+      .from('prep_suggestions')
+      .select('*');
+
+    const { data: mealLogData } = await supabase
+      .from('meal_logs')
+      .select('recipe_id, quantity');
 
     const { data, error } = await supabase
       .from('recipes')
@@ -117,10 +119,13 @@ export default function PrepSheet() {
          )`
       );
 
-    if (error) {
-      console.error('❌ Failed to load recipes:', error.message);
+    if (error || !data) {
+      console.error('❌ Failed to load recipes:', error?.message);
       return;
     }
+
+    const today = new Date();
+    const weekdayType = [0, 6].includes(today.getDay()) ? 'weekend' : 'weekday';
 
     const formatted: Recipe[] = data.map((r: any) => ({
       id: r.id,
@@ -139,19 +144,29 @@ export default function PrepSheet() {
 
     setRecipes(formatted);
 
-    const prepQty = 10;
-
+    // 🔄 修正ポイント: quantity = suggestion - currentStock を反映
     const generatedTasks: PrepTask[] = formatted.map((recipe) => {
-      const shortagesRaw = checkIngredientShortages(recipe, prepQty, inventoryData);
+      const recipeSuggestion = suggestionData?.find(
+        (s) => s.recipe_id === recipe.id && s.weekday_type === weekdayType
+      );
+      const suggestedQty = recipeSuggestion?.suggested_quantity || 0;
+
+      const currentMealTotal = mealLogData
+        ?.filter((m) => m.recipe_id === recipe.id)
+        .reduce((sum, m) => sum + (m.quantity || 0), 0) || 0;
+
+      const plannedPrep = Math.max(suggestedQty - currentMealTotal, 0);
+
+      const shortagesRaw = checkIngredientShortages(recipe, plannedPrep, inventoryData || []);
       const shortages = convertShortages(shortagesRaw);
-      const prepInfo = calculateNecessaryPrepAmount(recipe, prepQty, inventoryData);
+      const prepInfo = calculateNecessaryPrepAmount(recipe, plannedPrep, inventoryData || []);
 
       return {
         id: recipe.id,
         recipeId: recipe.id,
         recipeName: recipe.name,
         ingredientName: '',
-        quantity: prepQty,
+        quantity: plannedPrep,
         unit: 'batch',
         estimatedTime: recipe.estimatedTime,
         isCompleted: false,
@@ -178,16 +193,13 @@ export default function PrepSheet() {
     for (const ing of recipe.ingredients) {
       const totalUsed = ing.quantity * completedQuantity;
 
-      const { data: inventoryItem, error: fetchError } = await supabase
+      const { data: inventoryItem } = await supabase
         .from('inventory')
         .select('quantity')
         .eq('name', ing.name)
         .single();
 
-      if (fetchError || !inventoryItem) {
-        console.error('❌ Failed to fetch inventory for:', ing.name);
-        continue;
-      }
+      if (!inventoryItem) continue;
 
       const newQuantity = inventoryItem.quantity - totalUsed;
 
