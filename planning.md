@@ -8,10 +8,10 @@
 
 -improvement 4:POS Analysis Module
 
--improvement 5 Convert from Web to iOS(maybe this can be done before "improve 4" )
+-⭐ improvement 5 Convert from Web to iOS(⭐ maybe this can be done before "improve 4" )
 
 
-## the detalis for the improvement 1 and improvement 4
+## the detalied steps for the improvement 1 to improvement 4
 
 
 ### the steps for improvement 1 Smart Invoice OCR Integration
@@ -142,6 +142,159 @@ Category Suggestion	✅ Based on past inputs
 POS Sales Analysis	✅ CSV upload + trend logic
 Prep Planner	✅ Linked to recipes
 Ingredient Demand Forecast	✅ Based on past sales
+
+### Improvement 2: Editable Estimated Time
+
+
+🛠️ Implementation Plan – 
+🧩 Goal
+Allow users to tap the prep time field on the Prep Sheet and input a custom value for estimated time per recipe. Save it to the recipes table.
+
+✅ Step 1: Update Supabase Schema
+Add a new column to the recipes table:
+
+sql
+コピーする
+編集する
+alter table recipes
+add column estimated_time text;
+Store as text (e.g., "30 min", "45min", or "00:30") for flexibility.
+If you prefer a number (e.g., minutes), use integer.
+
+✅ Step 2: Display Estimated Time in Prep Sheet
+In RecipePrepTaskItem.tsx or PrepSheetSummary.tsx:
+
+tsx
+コピーする
+編集する
+<Text onPress={() => setEditMode(true)}>
+  Estimated Time: {recipe.estimated_time ?? '—'}
+</Text>
+✅ Step 3: Input Modal or Inline Edit
+You can use a simple input or modal:
+
+tsx
+コピーする
+編集する
+{editMode && (
+  <TextInput
+    value={tempValue}
+    onChangeText={setTempValue}
+    onBlur={handleSubmit}
+    keyboardType="default"
+/>
+)}
+✅ Step 4: Save to Supabase
+ts
+コピーする
+編集する
+await supabase
+  .from('recipes')
+  .update({ estimated_time: tempValue })
+  .eq('id', recipe.id);
+✅ Step 5: Sync Updated Time
+Fetch updated estimated_time when rendering the Prep Sheet
+
+Optional: add setRecipe() or trigger a refresh when user submits new value
+
+✅ Final Outcome
+Feature	Behavior
+📱 Tappable field	Users tap estimated time directly in Prep Sheet
+✏️ Editable input	Enter any human-readable value (e.g., "35 min")
+💾 Persistent	Saves to recipes.estimated_time in Supabase
+🔁 Shared across week	All prep suggestions of the same recipe share this time
+🧠 Controlled by human insight	No algorithm, no automation – just flexibility
+
+
+
+
+###improvement 3 Customizable Alert Level
+
+🧩 Goal
+Allow users to manually edit the alert threshold (e.g., "2kg") for each ingredient directly in the Inventory screen.
+This threshold will control when a low-stock warning appears.
+
+✅ Current Setup Summary
+Factor	Value
+Column exists?	✅ Yes (alertLevel in inventory table)
+UI editable?	❌ Not yet
+Save to Supabase?	🔜 Planned (on user input)
+Scope?	✅ Per ingredient
+Format?	Numeric (float or integer) depending on unit
+
+✅ Step-by-Step Implementation Plan
+✅ Step 1: Ensure alertLevel Exists in Supabase
+Confirmed ✅
+No changes needed here.
+
+✅ Step 2: Show Alert Level Field in InventoryItem.tsx
+Locate the InventoryItem component (likely used in a FlatList).
+
+Add a section like this:
+
+tsx
+コピーする
+編集する
+<View className="flex-row items-center mt-2">
+  <Text className="text-sm mr-2">Alert Below:</Text>
+  <TextInput
+    className="border px-2 py-1 w-16 rounded"
+    value={String(alertLevel ?? '')}
+    keyboardType="numeric"
+    onChangeText={(val) => setTempAlertLevel(val)}
+    onBlur={handleSaveAlertLevel}
+  />
+</View>
+✅ Step 3: Save Updated Alert Level to Supabase
+In the handleSaveAlertLevel function:
+
+ts
+コピーする
+編集する
+const handleSaveAlertLevel = async () => {
+  const numericValue = parseFloat(tempAlertLevel);
+  if (isNaN(numericValue)) return;
+
+  await supabase
+    .from('inventory')
+    .update({ alertLevel: numericValue })
+    .eq('id', item.id); // or item.uuid
+};
+✅ Step 4: Integrate with Low Stock Warning Logic
+Update your stock check logic:
+
+ts
+コピーする
+編集する
+const isLow = item.stock < (item.alertLevel ?? defaultThreshold);
+You can show a red banner or warning icon if isLow is true.
+
+✅ Step 5: Optional – Add Placeholder or Default
+If a user hasn’t set an alertLevel yet:
+
+tsx
+コピーする
+編集する
+<TextInput
+  placeholder="e.g. 2"
+  value={String(alertLevel ?? '')}
+/>
+Or fallback in logic:
+
+ts
+コピーする
+編集する
+const threshold = item.alertLevel ?? 1;
+🧾 Final Outcome
+Feature	Behavior
+✏️ Editable alert level	Users can input a custom alert threshold for each ingredient
+💾 Saved to Supabase	Stored in inventory.alertLevel
+🧠 Human decision-making	Chef/staff decides based on storage patterns or usage
+⚠️ Used in warning logic	Triggers low stock alerts when stock < alertLevel
+📱 Shown inline	Appears directly in InventoryItem.tsx list entry
+
+
+
 
 
  ### improvement 4:POS Analysis Module – Implementation Plan
