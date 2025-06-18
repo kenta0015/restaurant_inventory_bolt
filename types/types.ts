@@ -74,7 +74,6 @@ export interface PrepTask {
   isCompleted: boolean;
   completedQuantity: number;
 
-  // ✅ 以下を追加
   recipe: Recipe;
   shortages: Array<{
     name: string;
@@ -91,9 +90,14 @@ export interface PrepTask {
     }>;
     canPrepWithCurrentStock: boolean;
   };
+
+  // ✅ 追加: 完成品の在庫数（Meal Logベース）
+  currentMealStock: number;
+
+  // ✅ 追加: ユーザーがモーダルで変更した仕込み予定数
+  plannedPrepOverride?: number | null;
 }
 
-// 🆕 NEW: Recipe-based batch model
 export interface RecipePrepTask {
   id: string;
   recipeId: string;

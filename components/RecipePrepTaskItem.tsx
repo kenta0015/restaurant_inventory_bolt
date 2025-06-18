@@ -18,6 +18,10 @@ export default function RecipePrepTaskItem({ task, onComplete, onQuantityChange 
     setShowModal(true);
   };
 
+  const currentStock = task.currentMealStock ?? 0;
+  const plannedPrep = task.plannedPrepOverride ?? Math.max(task.quantity - currentStock, 0);
+ // ← 常に suggestion - stock で表示
+
   return (
     <>
       <TouchableOpacity onPress={handleCardPress} activeOpacity={0.9}>
@@ -33,30 +37,26 @@ export default function RecipePrepTaskItem({ task, onComplete, onQuantityChange 
 
           <View style={styles.prepRow}>
             <Text style={styles.prepLabel}>Planned Prep (based on suggestion): </Text>
-            <Text style={styles.prepValue}>{task.quantity} batch(es)</Text>
+            <Text style={styles.prepValue}>{plannedPrep} batch(es)</Text>
           </View>
 
           <View style={styles.prepRow}>
             <Text style={styles.prepLabel}>Current Stock: </Text>
             <Text style={styles.stockValue}>
-              {task.necessaryPrepInfo?.necessaryIngredients?.length > 0
-                ? task.necessaryPrepInfo.necessaryIngredients[0].currentStock
-                : 0}
-              {' '}
-              batch(es)
+              {currentStock} batch(es)
             </Text>
           </View>
 
           <View style={styles.actionRow}>
             <TouchableOpacity
               style={styles.doneButton}
-              onPress={() => onComplete(task.id, true, task.quantity)}
+              onPress={() => onComplete(task.id, true, plannedPrep)}
             >
               <Text style={styles.doneText}>✅ Done</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.notDoneButton}
-              onPress={() => onComplete(task.id, false, task.quantity)}
+              onPress={() => onComplete(task.id, false, plannedPrep)}
             >
               <Text style={styles.notDoneText}>❌ Not Done</Text>
             </TouchableOpacity>
@@ -67,19 +67,17 @@ export default function RecipePrepTaskItem({ task, onComplete, onQuantityChange 
       <RecipePrepDetailModal
         visible={showModal}
         recipe={task.recipe}
-        initialBatchQuantity={task.quantity}
+        initialBatchQuantity={plannedPrep}
         shortages={task.shortages}
-        onConfirm={(qty) => {
-          onQuantityChange(task.id, qty);
-          setShowModal(false);
-        }}
-        onClose={() => setShowModal(false)}
-        onQuantityChange={(qty) => {
-          onQuantityChange(task.id, qty);
-        }}
         necessaryPrepInfo={task.necessaryPrepInfo}
         showShortage={true}
         onCloseShortage={() => {}}
+        onQuantityChange={() => {}} // モーダル内部では使わない
+        onConfirm={(qty) => {
+          onQuantityChange(task.id, qty); // ✅ plannedPrepOverride として保存される
+          setShowModal(false);
+        }}
+        onClose={() => setShowModal(false)}
       />
     </>
   );

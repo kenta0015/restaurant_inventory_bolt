@@ -4,6 +4,9 @@ A mobile-first inventory management app designed for small restaurants, food tru
 
 Built with React Native + Expo Router, styled for clarity, and designed for easy tracking of stock levels without worrying about expiry dates.
 
+
+
+
 ## 📦 Project Structure
 
 restaurant_inventory_bolt-main/
@@ -27,19 +30,14 @@ View, add, and update stock in real time
 Materials are deducted automatically based on prep quantity
 
 📊 Prep-Sheet Mode
-Suggest daily prep quantity based on past trends (weekday-based average)
-過去ログからの予測アルゴリズム導入は後ほど
+Suggest daily prep quantity based on past trends (weekday/weekend-based average)
+
+
+
 
 ⚠️ Smart Alerts
 Combined low stock and physical check warnings
 
-alertLevel を後から手動で変更する方法
-方法1：SupabaseのWeb UI
-inventory テーブルを開き、対象材料の alertLevel セルをクリック
-
-例： 1 → 2 に書き換える → Enter
-
-方法2：アプリから編集（今は未対応なら、将来追加可能）
 
 🧠 Suggestion-Based System
 Offers prep quantity estimates, but leaves control in staff hands
@@ -79,6 +77,42 @@ Invoice preview, parsed OCR text, and confirmation toast (e.g., "✅ 3 items upd
 See the uploaded invoice image before and after scanning for transparency and verification
 
 
+### 🧠 Prep Sheet Quantity Logic
+
+The system operates in a hybrid mode combining automation with manual control.
+
+| Field | Meaning |
+|-------|---------|
+| `quantity` | Auto-generated suggested prep quantity from `prep_suggestions` |
+| `currentMealStock` | Existing prepped stock for today |
+| `Planned Prep` | Default = `quantity - currentMealStock` |
+| `plannedPrepOverride` | Staff override input (from modal) |
+| `Done` action | Logs `plannedPrepOverride` if provided, otherwise uses `quantity - stock` |
+
+➡️ **Display always shows system's suggestion**, but [✅ Done] respects staff input.
+
+
+This app uses a "complete deletion + manual override" strategy for meal logs:
+
+When a user manually enters the current stock of a prepared meal (e.g. "4 batches of tomato sauce remain"), the system:
+
+Deletes all existing meal logs for that recipe
+
+Inserts a single new log with the manually entered quantity
+
+Adjusts inventory based on the difference (delta) between the old and new total
+
+This ensures that the meal log reflects the actual physical stock, even after long breaks (e.g., holidays).
+
+🔄 Impact on Forecasting
+Although the system currently uses weekday/weekend suggestions set by the user, future versions may:
+
+Use historical logs (past 3 weeks) to automatically forecast prep suggestions
+
+Filter out override entries by checking notes = 'Manual override'
+
+This hybrid design balances automation and manual control with clarity and traceability.
+
 
 
 
@@ -114,51 +148,49 @@ System automation isn’t perfect — this feature helps avoid surprises.
 
 👁️ Visual cues only → never blocks flow
 
-📋 Recipe and Inventory Data Management Plan
+## 📋 Recipe and Inventory Data Management 
 
-🔹 Current Approach (Phase 1)To efficiently input recipe and inventory data:
 
-Manual Batch Import via Supabase CSV
 
-Prepare recipes or ingredient data in Excel or Google Sheets.
+✅ In-App CSV Import for Recipes and Ingredients
+Users can now upload .csv files directly from the app.
 
-Export the sheet as a .csv file.
+The uploader supports previewing and mapping of recipe names, categories, ingredients, and "how to cook" instructions.
 
-Use Supabase's built-in "Import CSV" function to quickly upload data into tables like recipes, ingredients, or meal_logs.
+Parsed data is automatically inserted into the Supabase recipes and ingredients tables.
 
-✅ This method minimizes manual data entry during the initial setup.
+This feature eliminates the need to use the Supabase dashboard for initial data setup.
 
-Invoice Management (Now):
+✅ OCR-Based Invoice Capture (Implemented with Tesseract.js)
+A working in-app invoice scanner reads text from supplier invoices via uploaded images.
 
-Supplier invoices (paper, PDF, CSV) are manually checked.
+Parsed data appears in a preview and can be adjusted before submission.
 
-Stock updates from supplier deliveries require physical checking and manual entry into the app.
+Supports dynamic ingredient entry and category assignment during the OCR flow.
 
-🔹 Future Improvements (Phase 2)To make data handling faster and less manual:
+✅ Manual Entry and Editing
+Ingredients and recipes can still be added or edited manually.
 
-CSV Import Feature for Recipes and Ingredients
+Category dropdown with "+ New" option allows for dynamic category creation.
 
-Implement an in-app file uploader.
+All changes sync directly with Supabase.
 
-Allow users to upload .csv files directly from mobile or desktop.
+📦 Invoice Management (Now - Mixed Approach)
+Paper, PDF, and CSV invoices are supported.
 
-Parse and automatically populate Supabase tables without opening the Supabase dashboard.
+OCR-based scanning has been implemented for image-based invoices.
 
-Supplier Invoice Parsing (Long-Term Goal)
+Manual verification is still required to ensure accuracy before updating stock.
 
-Develop tools to extract data automatically from CSV or PDF invoices.
 
-Auto-fill stock updates based on delivery quantities.
+### 🔍 Optional Enhancements:
 
-Reduce manual stock entry during restocking operations.
 
-Optional Enhancements:
+"Restock Last" Shortcut: One-tap refilling for commonly restocked ingredients.
 
-Barcode scanning feature to quickly identify ingredients during stock checks.
+Supplier Mapping: Link ingredients to suppliers for more accurate invoice parsing and order planning.
 
-Quick "Restock Last" shortcut to refill common items with one tap.
 
-Mobile-optimized batch stock update screen for faster manual updates when needed.
 
 🏁 Key PhilosophyAutomate what can be automated. Simplify what must stay manual. Always prioritize speed and accuracy for kitchen operations.
 

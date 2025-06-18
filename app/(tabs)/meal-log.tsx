@@ -82,63 +82,63 @@ export default function MealLogScreen() {
   };
 
   const handleQuantityUpdate = async (id: string, newQuantity: number) => {
-    console.log(`✏️ Updating quantity for ID ${id} → ${newQuantity}`);
+    console.log(`✏️ Manual override for meal log ID ${id} → ${newQuantity}`);
 
-    const { data, error } = await supabase
+    // 1. Get recipe_id
+    const { data: originalLog, error: fetchError } = await supabase
       .from("meal_logs")
-      .select("quantity, recipe_id, recipe:recipe_id (name)")
+      .select("recipe_id")
       .eq("id", id)
       .single();
 
-    if (error || !data) {
-      Alert.alert("Error", "Failed to retrieve original quantity");
+    if (fetchError || !originalLog) {
+      Alert.alert("Error", "Could not retrieve recipe info.");
       return;
     }
 
-    const oldQuantity = data.quantity;
-    const recipeId = data.recipe_id;
-    const recipeName =
-      Array.isArray(data.recipe) && data.recipe.length > 0
-        ? data.recipe[0].name
-        : (data.recipe as any)?.name || "Meal";
+    const recipeId = originalLog.recipe_id;
 
-    const delta = newQuantity - oldQuantity;
-    console.log(`📐 Delta = ${delta}`);
+    // 2. Get total existing quantity
+    const { data: logs } = await supabase
+      .from("meal_logs")
+      .select("quantity")
+      .eq("recipe_id", recipeId);
 
-    if (delta !== 0) {
-      await updateInventoryByDelta(recipeId, delta);
+    const oldTotal = logs?.reduce((sum, row) => sum + (row.quantity || 0), 0) ?? 0;
+    const delta = newQuantity - oldTotal;
+
+    console.log(`📐 Delta for inventory: ${delta}`);
+    await updateInventoryByDelta(recipeId, delta);
+
+    // 3. Delete all logs for this recipe
+    const { error: deleteError } = await supabase
+      .from("meal_logs")
+      .delete()
+      .eq("recipe_id", recipeId);
+
+    if (deleteError) {
+      Alert.alert("Error", "Failed to delete previous logs.");
+      return;
     }
 
-    const { error: updateError } = await supabase
-      .from("meal_logs")
-      .update({ quantity: newQuantity })
-      .eq("id", id);
+    // 4. Insert new override log
+    const todayStr = new Date().toISOString().split("T")[0];
+    const { error: insertError } = await supabase.from("meal_logs").insert({
+      recipe_id: recipeId,
+      quantity: newQuantity,
+      manualOverrideServings: newQuantity,
+      notes: "Manual override",
+      date: todayStr,
+    });
 
-    if (updateError) {
-      Alert.alert("Error", updateError.message);
+    if (insertError) {
+      Alert.alert("Error", "Failed to insert new override log.");
     } else {
-      console.log("✅ Meal log updated successfully");
-
-      const threshold = 2;
-      const shouldAlert = newQuantity <= threshold;
-      console.log(`🚨 recipeName: ${recipeName}`);
-
-      if (shouldAlert) {
-        setTimeout(() => {
-          Alert.alert(
-            "⚠️ Low Meal Stock",
-            `The stock for "${recipeName}" is now ${newQuantity}, which is below the threshold of ${threshold}.`
-          );
-        }, 100);
-      }
-
-      setTimeout(() => {
-        fetchMealLogs();
-      }, 150);
+      console.log("✅ Manual override saved.");
+      fetchMealLogs();
     }
   };
 
-  // ✅ Group logs by recipe name and sum quantity + merge notes
   const groupedLogs = mealLogs
     .filter((log) =>
       log.recipe.name.toLowerCase().includes(searchQuery.toLowerCase())
@@ -235,3 +235,4 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
 });
+

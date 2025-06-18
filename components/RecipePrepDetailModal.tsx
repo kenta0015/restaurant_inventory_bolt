@@ -9,7 +9,6 @@ import {
   Button,
 } from 'react-native';
 import { Recipe } from '../types/types';
-import ShortageAlert from './ShortageAlert';
 import PrepQuantityAdjuster from './PrepQuantityAdjuster';
 import { supabase } from '../supabaseClient';
 
@@ -96,17 +95,45 @@ export default function RecipePrepDetailModal({
   };
 
   const saveSuggestion = async () => {
-    await supabase.from('prep_suggestions').upsert({
-      recipe_id: recipe.id,
-      weekday_type: weekdayType,
-      suggested_quantity: suggestion,
-    });
+    const { error } = await supabase
+      .from('prep_suggestions')
+      .upsert(
+        [{
+          recipe_id: recipe.id,
+          weekday_type: weekdayType,
+          suggested_quantity: suggestion,
+        }],
+        { onConflict: 'recipe_id,weekday_type' }
+      );
+
+    if (!error) {
+      alert("✅ Suggestion saved"); // ✅ Web-safe universal alert
+      onClose(); // ✅ Close modal
+    } else {
+      console.error('Save error:', error);
+    }
   };
+
+  const dynamicIngredients = recipe.ingredients.map((ing) => {
+    const matched = necessaryPrepInfo?.necessaryIngredients.find(
+      (item) => item.name === ing.name
+    );
+    const need = ing.quantity * batchQuantity;
+    const have = (matched?.currentStock ?? 0) - need;
+    return {
+      name: ing.name,
+      unit: ing.unit,
+      necessaryAmount: need,
+      remainingStock: have,
+      isLow: have < 2,
+    };
+  });
 
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
       <ScrollView contentContainerStyle={styles.container}>
         <Text style={styles.title}>{recipe.name} – Detail</Text>
+
         <View style={styles.tabRow}>
           <Button
             title="Planned Prep"
@@ -120,13 +147,22 @@ export default function RecipePrepDetailModal({
           />
         </View>
 
-        {showShortage && shortages.length > 0 && (
-          <ShortageAlert shortages={shortages} onClose={onCloseShortage} />
-        )}
-
         <Text style={styles.subInfo}>
           📦 Current Stock: {currentStock ?? '...'} batch(es)
         </Text>
+
+        <Text style={styles.sectionTitle}>🧂 Ingredients Required</Text>
+        {dynamicIngredients.map((item, index) => (
+          <View key={index} style={styles.ingredientBox}>
+            <Text style={styles.ingredientText}>
+              {item.name} — Need: {item.necessaryAmount} {item.unit} / Have:{" "}
+              {item.remainingStock < 0 ? 0 : item.remainingStock} {item.unit}
+            </Text>
+            {item.isLow && (
+              <Text style={styles.alertText}>⚠️ Low Stock</Text>
+            )}
+          </View>
+        ))}
 
         {selectedTab === 'prep' ? (
           <>
@@ -139,9 +175,7 @@ export default function RecipePrepDetailModal({
             />
             <TouchableOpacity
               style={styles.confirmButton}
-              onPress={() => {
-                onConfirm(batchQuantity);
-              }}
+              onPress={() => onConfirm(batchQuantity)}
             >
               <Text style={styles.confirmButtonText}>✅ Confirm</Text>
             </TouchableOpacity>
@@ -199,6 +233,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: '600',
+    marginTop: 20,
     marginBottom: 10,
     color: '#333',
   },
@@ -231,5 +266,20 @@ const styles = StyleSheet.create({
   cancelButtonText: {
     color: '#666',
     fontSize: 16,
+  },
+  ingredientBox: {
+    backgroundColor: '#f0f0f0',
+    padding: 10,
+    marginBottom: 6,
+    borderRadius: 6,
+  },
+  ingredientText: {
+    fontSize: 14,
+    color: '#333',
+  },
+  alertText: {
+    color: '#D32F2F',
+    fontWeight: 'bold',
+    marginTop: 4,
   },
 });

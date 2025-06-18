@@ -10,44 +10,34 @@ interface ShortageAlertProps {
 
 export default function ShortageAlert({ shortages, onClose }: ShortageAlertProps) {
   if (shortages.length === 0) return null;
-  
+
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <View style={styles.titleContainer}>
-          <AlertTriangle color="#FFF" size={20} />
-          <Text style={styles.title}>Ingredient Shortage Alert</Text>
+    <View style={styles.alertBox}>
+      <View style={styles.alertHeader}>
+        <View style={styles.iconAndTitle}>
+          <AlertTriangle color="#FFF" size={18} />
+          <Text style={styles.alertTitle}>Ingredient Shortage Alert</Text>
         </View>
-        <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+        <TouchableOpacity onPress={onClose}>
           <X color="#FFF" size={20} />
         </TouchableOpacity>
       </View>
-      
-      <View style={styles.content}>
-        <Text style={styles.message}>
+
+      <View style={styles.body}>
+        <Text style={styles.messageText}>
           The following ingredients are low or unavailable for the suggested prep:
         </Text>
-        
-        {shortages.map((shortage, index) => (
-          <View key={index} style={styles.shortageItem}>
-            <Text style={styles.ingredientName}>{shortage.ingredientName}</Text>
-            <View style={styles.quantityContainer}>
-              <Text style={styles.quantityText}>
-                Need: <Text style={styles.quantityValue}>{shortage.required} {shortage.unit}</Text>
-              </Text>
-              <Text style={styles.quantityText}>
-                Have: <Text style={[
-                  styles.quantityValue,
-                  shortage.available < shortage.required && styles.shortageValue
-                ]}>
-                  {shortage.available} {shortage.unit}
-                </Text>
-              </Text>
+
+        {shortages.map((item, index) => (
+          <View key={index} style={styles.itemRow}>
+            <View style={styles.rowInner}>
+              <Text style={styles.needText}>Need: <Text style={styles.boldText}>{item.required} {item.unit}</Text></Text>
+              <Text style={styles.haveText}>Have: <Text style={styles.boldText}>{item.available} {item.unit}</Text></Text>
             </View>
           </View>
         ))}
-        
-        <Text style={styles.suggestion}>
+
+        <Text style={styles.footnote}>
           Consider adjusting your prep quantity or restocking these items.
         </Text>
       </View>
@@ -56,75 +46,67 @@ export default function ShortageAlert({ shortages, onClose }: ShortageAlertProps
 }
 
 const styles = StyleSheet.create({
-  container: {
-    backgroundColor: '#FFF',
-    borderRadius: 10,
-    marginBottom: 16,
-    overflow: 'hidden',
+  alertBox: {
+    borderColor: '#FFA500',
     borderWidth: 1,
-    borderColor: '#FF7F00',
+    borderRadius: 6,
+    overflow: 'hidden',
+    marginBottom: 16,
   },
-  header: {
-    backgroundColor: '#FF7F00',
+  alertHeader: {
+    backgroundColor: '#FFA500',
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+  },
+  iconAndTitle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  alertTitle: {
+    color: '#FFF',
+    fontWeight: '600',
+    fontSize: 16,
+  },
+  body: {
+    backgroundColor: '#FFFAF2',
+    paddingHorizontal: 14,
     paddingVertical: 12,
   },
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  title: {
-    color: '#FFF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  closeButton: {
-    padding: 4,
-  },
-  content: {
-    padding: 16,
-  },
-  message: {
-    fontSize: 15,
+  messageText: {
+    fontSize: 14,
     color: '#333',
-    marginBottom: 12,
+    marginBottom: 10,
   },
-  shortageItem: {
-    backgroundColor: '#FFF8F0',
-    borderRadius: 8,
-    padding: 12,
+  itemRow: {
+    backgroundColor: '#FFF3E0',
+    padding: 10,
+    borderRadius: 6,
     marginBottom: 8,
   },
-  ingredientName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 4,
-  },
-  quantityContainer: {
+  rowInner: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 4,
   },
-  quantityText: {
+  needText: {
     fontSize: 14,
-    color: '#666',
+    color: '#555',
   },
-  quantityValue: {
+  haveText: {
+    fontSize: 14,
+    color: '#555',
+  },
+  boldText: {
     fontWeight: '600',
-    color: '#333',
+    color: '#222',
   },
-  shortageValue: {
-    color: '#FF0000',
-  },
-  suggestion: {
-    fontSize: 14,
+  footnote: {
+    fontSize: 13,
+    color: '#555',
     fontStyle: 'italic',
-    color: '#666',
-    marginTop: 8,
+    marginTop: 10,
   },
 });

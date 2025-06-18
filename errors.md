@@ -370,3 +370,55 @@ The recipe and its ingredients are fully deleted from Supabase.
 
 Console logs confirm each step of the deletion flow.
 
+🐞 Error Summary 6
+❌ Problem Overview: Current Stock showed 0 batch(es) in Prep Sheet despite valid meal_logs
+Even though the correct data existed in meal_logs, the UI always showed:
+
+Current Stock: 0 batch(es)
+
+Console logs revealed:
+
+ts
+コピーする
+編集する
+🧪 mealLogData null  
+🧪 mealLogError { code: '42703', message: 'column meal_logs.created_at does not exist' }  
+🧪 mealLogMap keys []  
+🔍 Root Cause
+Cause	Description
+❌ Wrong column used in query	Code was using .order('created_at'), but no such column existed in the meal_logs table
+❌ Query failure silently returned null	Because of the missing column, Supabase query failed → mealLogData = null
+❌ Meal Log Map stayed empty	No entries were added to mealLogMap, so currentMealStock defaulted to 0
+❌ UI appeared normal	There was no crash, just incorrect values silently propagating
+
+🧪 Debugging Steps Taken
+Step	Action
+✅ Console logged mealLogError	Revealed created_at was missing
+✅ Verified meal_logs schema	Found date column was the correct one to use
+✅ Switched to .order('date', { ascending: false })	Corrected the ordering logic
+✅ Confirmed manualOverrideServings exists	Used this field as Current Stock source
+✅ Console showed mealLogMap keys populated	Correct IDs matched recipe IDs
+✅ UI now displays Current Stock: X batch(es)	Value matches latest meal log entry as expected
+
+💡 Final Resolution
+ts
+コピーする
+編集する
+const { data: mealLogData } = await supabase
+  .from('meal_logs')
+  .select('recipe_id, manualOverrideServings, date')  // ✅ 'date' instead of 'created_at'
+  .order('date', { ascending: false });               // ✅ Fixed query
+And in meal log mapping:
+
+ts
+コピーする
+編集する
+if (!mealLogMap.has(log.recipe_id)) {
+  mealLogMap.set(log.recipe_id, log.manualOverrideServings ?? 0); // ✅ Correctly set stock
+}
+🎉 Final Outcome
+Feature	Status
+Current stock now reflects most recent meal log	✅ Correct
+Prep calculation Planned = suggestion − currentStock works	✅ Accurate
+No Supabase error	✅ Clean
+Compatible with manual overrides	✅ Working

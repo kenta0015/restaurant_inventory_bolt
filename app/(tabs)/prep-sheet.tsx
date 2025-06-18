@@ -9,7 +9,6 @@ import {
 } from 'react-native';
 import PrepSheetSummary from '../../components/PrepSheetSummary';
 import RecipePrepTaskItem from '../../components/RecipePrepTaskItem';
-import RecipePrepDetailModal from '../../components/RecipePrepDetailModal';
 import { supabase } from '../../supabaseClient';
 import {
   Recipe,
@@ -26,20 +25,6 @@ export default function PrepSheet() {
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [tasks, setTasks] = useState<PrepTask[]>([]);
   const [comment, setComment] = useState('');
-  const [modalVisible, setModalVisible] = useState(false);
-  const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
-  const [selectedQuantity, setSelectedQuantity] = useState(1);
-  const [shortages, setShortages] = useState<IngredientShortage[]>([]);
-  const [showShortage, setShowShortage] = useState(true);
-  const [necessaryPrepInfo, setNecessaryPrepInfo] = useState<{
-    necessaryIngredients: {
-      name: string;
-      necessaryAmount: number;
-      unit: string;
-      currentStock: number;
-    }[];
-    canPrepWithCurrentStock: boolean;
-  }>();
 
   useEffect(() => {
     fetchRecipes();
@@ -87,28 +72,28 @@ export default function PrepSheet() {
     );
   };
 
-  const convertShortages = (list: IngredientShortage[]) =>
+  const convertShortages = (list: any[]) =>
     list.map((s) => ({
-      name: s.ingredientName,
-      necessaryAmount: s.required,
-      unit: s.unit,
-      currentStock: s.available,
+      name: s.ingredientName || s.name,
+      necessaryAmount: s.required || s.necessaryAmount || 0,
+      unit: s.unit || '',
+      currentStock: s.available || s.currentStock || 0,
     }));
 
   const fetchRecipes = async () => {
-    const { data: inventoryData } = await supabase
-      .from('inventory')
-      .select('*');
+    const { data: inventoryData } = await supabase.from('inventory').select('*');
 
-    const { data: suggestionData } = await supabase
-      .from('prep_suggestions')
-      .select('*');
+    const { data: suggestionData } = await supabase.from('prep_suggestions').select('*');
 
-    const { data: mealLogData } = await supabase
+    const { data: mealLogData, error: mealLogError } = await supabase
       .from('meal_logs')
-      .select('recipe_id, quantity');
+      .select('recipe_id, manualOverrideServings, date')
+      .order('date', { ascending: false }); // ✅ FIXED HERE
 
-    const { data, error } = await supabase
+    console.log('🧪 mealLogData', mealLogData);
+    console.log('🧪 mealLogError', mealLogError);
+
+    const { data: recipeData, error: recipeError } = await supabase
       .from('recipes')
       .select(
         `id, name, category, createdAt, description,
@@ -119,15 +104,14 @@ export default function PrepSheet() {
          )`
       );
 
-    if (error || !data) {
-      console.error('❌ Failed to load recipes:', error?.message);
+    if (recipeError || !recipeData) {
+      console.error('❌ Failed to load recipes:', recipeError?.message);
       return;
     }
 
-    const today = new Date();
-    const weekdayType = [0, 6].includes(today.getDay()) ? 'weekend' : 'weekday';
+    const weekdayType = [0, 6].includes(new Date().getDay()) ? 'weekend' : 'weekday';
 
-    const formatted: Recipe[] = data.map((r: any) => ({
+    const formatted: Recipe[] = recipeData.map((r: any) => ({
       id: r.id,
       name: r.name,
       description: r.description || '',
@@ -144,19 +128,33 @@ export default function PrepSheet() {
 
     setRecipes(formatted);
 
-    // 🔄 修正ポイント: quantity = suggestion - currentStock を反映
+    const mealLogMap = new Map<string, number>();
+
+    if (mealLogData) {
+      mealLogData.forEach((log) => {
+        if (!mealLogMap.has(log.recipe_id)) {
+          mealLogMap.set(log.recipe_id, log.manualOverrideServings ?? 0);
+        }
+      });
+    }
+
+    console.log('🧪 mealLogMap keys', Array.from(mealLogMap.keys()));
+
     const generatedTasks: PrepTask[] = formatted.map((recipe) => {
       const recipeSuggestion = suggestionData?.find(
         (s) => s.recipe_id === recipe.id && s.weekday_type === weekdayType
       );
-      const suggestedQty = recipeSuggestion?.suggested_quantity || 0;
+      const targetQuantity = recipeSuggestion?.suggested_quantity || 0;
 
-      const currentMealTotal = mealLogData
-        ?.filter((m) => m.recipe_id === recipe.id)
-        .reduce((sum, m) => sum + (m.quantity || 0), 0) || 0;
+      const currentMealStock =
+        Array.from(mealLogMap.entries()).find(([id]) => id === recipe.id)?.[1] || 0;
 
-      const plannedPrep = Math.max(suggestedQty - currentMealTotal, 0);
+      console.log('🧪 Matching:', {
+        recipeId: recipe.id,
+        currentMealStock,
+      });
 
+      const plannedPrep = Math.max(targetQuantity - currentMealStock, 0);
       const shortagesRaw = checkIngredientShortages(recipe, plannedPrep, inventoryData || []);
       const shortages = convertShortages(shortagesRaw);
       const prepInfo = calculateNecessaryPrepAmount(recipe, plannedPrep, inventoryData || []);
@@ -166,7 +164,7 @@ export default function PrepSheet() {
         recipeId: recipe.id,
         recipeName: recipe.name,
         ingredientName: '',
-        quantity: plannedPrep,
+        quantity: targetQuantity,
         unit: 'batch',
         estimatedTime: recipe.estimatedTime,
         isCompleted: false,
@@ -174,6 +172,8 @@ export default function PrepSheet() {
         recipe,
         shortages,
         necessaryPrepInfo: prepInfo,
+        currentMealStock,
+        plannedPrepOverride: null,
       };
     });
 
@@ -183,12 +183,15 @@ export default function PrepSheet() {
   const handleComplete = async (
     taskId: string,
     isCompleted: boolean,
-    completedQuantity: number
+    _completedQuantity: number
   ) => {
     if (!isCompleted) return;
 
     const recipe = recipes.find((r) => r.id === taskId);
-    if (!recipe) return;
+    const task = tasks.find((t) => t.id === taskId);
+    if (!recipe || !task) return;
+
+    const completedQuantity = task.plannedPrepOverride ?? Math.max(task.quantity - task.currentMealStock, 0);
 
     for (const ing of recipe.ingredients) {
       const totalUsed = ing.quantity * completedQuantity;
@@ -212,8 +215,8 @@ export default function PrepSheet() {
     const { error } = await supabase.from('meal_logs').insert({
       recipe_id: taskId,
       quantity: completedQuantity,
-      manualOverrideServings: null,
-      notes: null,
+      manualOverrideServings: completedQuantity,
+      notes: 'Manual override',
     });
 
     if (error) {
@@ -230,7 +233,9 @@ export default function PrepSheet() {
 
   const handleQuantityChange = (taskId: string, newQty: number) => {
     setTasks((prev) =>
-      prev.map((t) => (t.id === taskId ? { ...t, quantity: newQty } : t))
+      prev.map((t) =>
+        t.id === taskId ? { ...t, plannedPrepOverride: newQty } : t
+      )
     );
   };
 
@@ -280,29 +285,6 @@ export default function PrepSheet() {
           )}
         </View>
       </View>
-
-      {selectedRecipe && necessaryPrepInfo && (
-        <RecipePrepDetailModal
-          visible={modalVisible}
-          recipe={selectedRecipe}
-          initialBatchQuantity={selectedQuantity}
-          shortages={shortages.map((s) => ({
-            name: s.ingredientName,
-            necessaryAmount: s.required,
-            unit: s.unit,
-            currentStock: s.available,
-          }))}
-          necessaryPrepInfo={necessaryPrepInfo}
-          onQuantityChange={setSelectedQuantity}
-          onConfirm={(qty) => {
-            setSelectedQuantity(qty);
-            setModalVisible(false);
-          }}
-          onClose={() => setModalVisible(false)}
-          showShortage={showShortage}
-          onCloseShortage={() => setShowShortage(false)}
-        />
-      )}
     </ScrollView>
   );
 }
